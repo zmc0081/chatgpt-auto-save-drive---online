@@ -1,22 +1,24 @@
 # ChatGPT Auto Save to Google Drive
 
-A Chrome Extension that automatically detects new ChatGPT responses and saves them to your Google Drive in real-time.
+A Chrome Extension that automatically detects ChatGPT responses and saves them to Google Drive in Markdown format.
 
 ---
 
 ## 🚀 Features
 
-* ✅ Automatically detects ChatGPT responses
-* ✅ Saves responses to Google Drive
-* ✅ Supports custom folder organization
-* ✅ No manual interaction required
-* ✅ Lightweight and fast (runs in browser)
+* ✅ Detects ChatGPT page updates via MutationObserver + polling (works without manual refresh)
+* ✅ Uses **conversation title + timestamp** as file name prefix
+* ✅ Saves content as **Markdown (.md)**
+* ✅ Built-in upload retry (up to 10 times)
+* ✅ Shows failed uploads and supports manual re-upload from popup
+* ✅ Displays upload progress in `success/total` format (e.g. `3/5`)
+* ✅ Popup UI shows runtime state and failure notice (`文件上传失败`)
 
 ---
 
 ## 📦 Project Structure
 
-```
+```bash
 chatgpt-auto-save-drive/
 ├── manifest.json
 ├── background.js
@@ -30,10 +32,12 @@ chatgpt-auto-save-drive/
 
 ## 🧠 How It Works
 
-1. Content script monitors ChatGPT page changes
-2. Detects new assistant responses
-3. Sends content to background script
-4. Background script uploads file to Google Drive via API
+1. `content.js` monitors chat changes in real-time (DOM mutation + periodic checks)
+2. New assistant reply is converted to Markdown
+3. File name is generated using conversation title + current timestamp
+4. Task is pushed to background upload queue
+5. `background.js` uploads to Google Drive and retries failures (max 10)
+6. Popup displays progress, status, and manual retry list
 
 ---
 
@@ -46,8 +50,6 @@ git clone https://github.com/YOUR_USERNAME/chatgpt-auto-save-drive.git
 cd chatgpt-auto-save-drive
 ```
 
----
-
 ### 2. Setup Google Cloud
 
 1. Go to Google Cloud Console
@@ -55,8 +57,6 @@ cd chatgpt-auto-save-drive
 3. Enable **Google Drive API**
 4. Configure **OAuth Consent Screen**
 5. Create **OAuth Client ID**
-
----
 
 ### 3. Configure Extension
 
@@ -66,70 +66,42 @@ Open `manifest.json` and replace:
 "client_id": "YOUR_CLIENT_ID"
 ```
 
-with your real client ID:
-
-```json
-"client_id": "xxxxxxxxxxxx.apps.googleusercontent.com"
-```
-
----
+with your real client ID.
 
 ### 4. (Optional) Set Target Folder
 
-In `background.js`:
+In `background.js`, update:
 
 ```javascript
-const metadata = {
-  name: filename,
-  parents: ["YOUR_FOLDER_ID"]
-};
+const DRIVE_FOLDER_ID = "YOUR_FOLDER_ID";
 ```
-
----
 
 ### 5. Load Extension in Chrome
 
-1. Open Chrome
-2. Go to:
-
-```
-chrome://extensions
-```
-
-3. Enable **Developer Mode**
-4. Click **Load unpacked**
-5. Select the project folder
+1. Open `chrome://extensions`
+2. Enable **Developer Mode**
+3. Click **Load unpacked**
+4. Select this project folder
 
 ---
 
 ## 🧪 Usage
 
-1. Open ChatGPT
-2. Start a conversation
-3. Wait for a response
-
-👉 The extension will automatically:
-
-* Detect new content
-* Upload it to Google Drive
+1. Open ChatGPT and ask questions
+2. Wait for assistant response
+3. Extension auto-saves the latest response to Google Drive
+4. Open popup to check:
+   * Upload progress (`已成功/总数`)
+   * Failed uploads list
+   * Manual retry actions
 
 ---
 
 ## 📁 Output Example
 
-Files will be saved as:
-
+```text
+How_to_build_a_scraper_2026-04-16_08-35-22.md
 ```
-chatgpt_auto_YYYY-MM-DD_HH-MM-SS.txt
-```
-
----
-
-## 🔐 Security Notes
-
-* Do NOT commit your real `client_id`
-* Use placeholders in public repos
-* Keep OAuth configuration private
 
 ---
 
@@ -137,34 +109,18 @@ chatgpt_auto_YYYY-MM-DD_HH-MM-SS.txt
 
 ### ❌ No file appears in Drive
 
-* Check correct Google account
-* Verify OAuth permissions
-* Check console logs
+* Verify Google account and OAuth authorization
+* Check extension service worker logs
+* Confirm `DRIVE_FOLDER_ID` is valid
 
-### ❌ Extension not triggering
+### ❌ Upload keeps failing
 
-* Refresh ChatGPT page
-* Check `content.js` selectors
-
----
-
-## 🔮 Future Improvements
-
-* Save as Markdown (.md)
-* Auto naming based on conversation title
-* Folder auto organization by date
-* Export to Notion / Obsidian
+* Extension retries automatically up to 10 times
+* If still failing, popup shows `文件上传失败`
+* Use manual retry in failed list after checking network/permissions
 
 ---
 
 ## 📄 License
 
 MIT License
-
----
-
-## ⭐ Support
-
-If you find this project useful, give it a ⭐ on GitHub!
-# chatgpt-auto-save-drive
-
