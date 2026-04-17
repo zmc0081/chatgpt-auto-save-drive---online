@@ -1,4 +1,4 @@
-let lastSavedText = "";
+let lastSavedSnapshot = "";
 let saveTimer = null;
 let lastKnownUrl = location.href;
 
@@ -28,93 +28,127 @@ function getConversationTitle() {
   return sanitizeFileName(title || "chatgpt_conversation");
 }
 
-function getLatestAssistantMessage() {
-  const selectors = [
-    '[data-message-author-role="assistant"]',
-    '[data-testid^="conversation-turn-"] [data-message-author-role="assistant"]',
-    'article'
-  ];
+function normalizeText(text) {
+  return (text || "")
+    .replace(/\u00a0/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
-  for (const selector of selectors) {
-    const nodes = document.querySelectorAll(selector);
-    if (nodes && nodes.length > 0) {
-      for (let i = nodes.length - 1; i >= 0; i--) {
-        const text = (nodes[i].innerText || "").trim();
-        if (text && text.length > 20) {
-          return text;
-        }
-      }
-    }
+function collectRoleBasedMessages() {
+  const nodes = document.querySelectorAll("[data-message-author-role]");
+  const messages = [];
+
+  nodes.forEach((node) => {
+    const role = node.getAttribute("data-message-author-role");
+    const text = normalizeText(node.innerText || node.textContent || "");
+    if (!role || !text) return;
+
+    messages.push({ role, text });
+  });
+
+  return messages;
+}
+
+function collectArticleMessages() {
+  const articles = document.querySelectorAll("article");
+  const messages = [];
+
+  articles.forEach((article, index) => {
+    const text = normalizeText(article.innerText || article.textContent || "");
+    if (!text) return;
+
+    const role = index % 2 === 0 ? "user" : "assistant";
+    messages.push({ role, text });
+  });
+
+  return messages;
+}
+
+function getConversationMessages() {
+  const roleBased = collectRoleBasedMessages();
+  if (roleBased.length > 0) {
+    return roleBased;
   }
 
-  return "";
+  return collectArticleMessages();
 }
 
-function generateFileName(prefix) {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const hour = String(now.getHours()).padStart(2, "0");
-  const minute = String(now.getMinutes()).padStart(2, "0");
-  const second = String(now.getSeconds()).padStart(2, "0");
-
-  return `${prefix}_${year}-${month}-${day}_${hour}-${minute}-${second}.md`;
-}
-
-function toMarkdownContent(title, text) {
+function toMarkdownContent(title, messages) {
   const timestamp = new Date().toLocaleString("zh-CN", { hour12: false });
-  return `# ${title}\n\n- 保存时间: ${timestamp}\n\n---\n\n${text}\n`;
+  const body = messages
+    .map((message) => {
+      const heading = message.role === "assistant" ? "## Assistant" : "## User";
+      return `${heading}\n\n${message.text}`;
+    })
+    .join("\n\n---\n\n");
+
+  return `# ${title}\n\n- 更新时间: ${timestamp}\n- 消息数: ${messages.length}\n\n---\n\n${body}\n`;
 }
 
-function saveLatestReply() {
-  const text = getLatestAssistantMessage();
-  if (!text || text === lastSavedText) {
+function queueConversationSync() {
+  const messages = getConversationMessages();
+  if (messages.length === 0) {
     return;
   }
 
-  lastSavedText = text;
+  const snapshot = messages.map((item) => `${item.role}:${item.text}`).join("\n\n");
+  if (!snapshot || snapshot === lastSavedSnapshot) {
+    return;
+  }
+
+  lastSavedSnapshot = snapshot;
 
   const title = getConversationTitle();
-  const filename = generateFileName(title);
-  const markdownContent = toMarkdownContent(title, text);
-
   chrome.runtime.sendMessage(
     {
       type: "ENQUEUE_UPLOAD",
       payload: {
-        filename,
-        content: markdownContent,
+        content: toMarkdownContent(title, messages),
         mimeType: "text/markdown",
         conversationTitle: title,
-        rawText: text
+        rawText: snapshot
       }
     },
     () => {
       if (chrome.runtime.lastError) {
-        console.error("[CS] 发送消息失败:", chrome.runtime.lastError.message);
+        console.error("[content] sendMessage failed:", chrome.runtime.lastError.message);
       }
     }
   );
 }
 
-const observer = new MutationObserver(() => {
+function scheduleSync(delay = 1500) {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveLatestReply, 1500);
+  saveTimer = setTimeout(queueConversationSync, delay);
+}
+
+const observer = new MutationObserver(() => {
+  scheduleSync(1200);
 });
 
-observer.observe(document.body, {
-  childList: true,
-  subtree: true,
-  characterData: true
-});
+function startObserver() {
+  if (!document.body) {
+    setTimeout(startObserver, 300);
+    return;
+  }
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true
+  });
+
+  scheduleSync(2000);
+}
+
+startObserver();
 
 setInterval(() => {
   if (location.href !== lastKnownUrl) {
     lastKnownUrl = location.href;
-    lastSavedText = "";
+    lastSavedSnapshot = "";
   }
-  saveLatestReply();
-}, 3000);
 
-setTimeout(saveLatestReply, 2500);
+  queueConversationSync();
+}, 3000);
