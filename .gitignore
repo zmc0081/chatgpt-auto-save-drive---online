@@ -1,4 +1,6 @@
+key.pem
 *.pem
+*.zip
 .env
 config.local.js
 node_modules/

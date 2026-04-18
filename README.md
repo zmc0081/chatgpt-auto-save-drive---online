@@ -81,19 +81,15 @@ cd chatgpt-auto-save-drive
 
 | English | 中文 |
 | --- | --- |
-| Open `manifest.json` and replace the OAuth client id if needed | 如果需要，请打开 `manifest.json` 并替换 OAuth client id |
+| Open `manifest.json` and replace the OAuth client id placeholder before publishing or local testing | 如果需要，请打开 `manifest.json` 并替换 OAuth client id |
 
 ```json
-"client_id": "YOUR_CLIENT_ID"
+"client_id": "<PLACEHOLDER_CLIENT_ID>.apps.googleusercontent.com"
 ```
 
 | English | 中文 |
 | --- | --- |
-| Update the target Google Drive folder in `background.js` if needed | 如果需要，请在 `background.js` 中修改目标 Google Drive 文件夹 |
-
-```javascript
-const DRIVE_FOLDER_ID = "YOUR_FOLDER_ID";
-```
+| No Drive folder id needs to be configured manually; the extension creates or reuses its own folder dynamically at runtime | 无需手动配置 Drive 文件夹 ID；扩展会自动处理 |
 
 ### 4. Load the extension in Chrome | 在 Chrome 中加载扩展
 
@@ -122,7 +118,7 @@ const DRIVE_FOLDER_ID = "YOUR_FOLDER_ID";
 | --- | --- |
 | Confirm the extension has been reloaded after local changes | 确认本地修改后已经重新加载扩展 |
 | Confirm Google OAuth authorization has been granted | 确认已经完成 Google OAuth 授权 |
-| Confirm `DRIVE_FOLDER_ID` is valid | 确认 `DRIVE_FOLDER_ID` 有效 |
+| Check whether the extension-created Drive folder exists and the current account can access it | 检查扩展自动创建的 Drive 文件夹是否可用 |
 | Check the extension service worker logs in `chrome://extensions` | 在 `chrome://extensions` 中查看扩展 service worker 日志 |
 
 ### File was deleted in Drive and no new file appears | Drive 文件被删除后没有生成新文件

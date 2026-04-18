@@ -1,11 +1,15 @@
-const DRIVE_FOLDER_ID = "1Mu4eKgcwvtv_Q53lf5MIjOWylwc3esiF";
 const MAX_RETRY = 10;
 const UPLOAD_STATE_KEY = "uploadState";
-const WINDOW_FILE_MAP_KEY = "windowFileMap";
 const CHATGPT_URL_PATTERNS = [
   "https://chatgpt.com/*",
   "https://chat.openai.com/*"
 ];
+
+// ===== OAuth Token management =====
+
+const FOLDER_NAME = "ChatGPT-AutoSave";
+const FOLDER_STORAGE_KEY = "drive_folder_id";
+const FILE_MAP_PREFIX = "file_map_";
 
 let uploadQueue = [];
 let processing = false;
@@ -15,6 +19,8 @@ function getDefaultState() {
     pendingCount: 0,
     isSyncing: false,
     isAvailable: true,
+    requiresAuth: false,
+    lastSyncTime: "",
     failedItems: [],
     lastErrorNotice: ""
   };
@@ -30,15 +36,27 @@ async function hasOpenChatGPTTab() {
   return tabs.length > 0;
 }
 
-async function setState(state) {
-  await chrome.storage.local.set({ [UPLOAD_STATE_KEY]: state });
-  await updateBadge(state);
-}
-
 async function setBadgeTextColor(color) {
   if (typeof chrome.action.setBadgeTextColor === "function") {
     await chrome.action.setBadgeTextColor({ color });
   }
+}
+
+function getBadgeConfig(stateName) {
+  const config = {
+    ON: { text: "ON", color: "#4CAF50" },
+    ING: { text: "ING", color: "#FF9800" },
+    OFF: { text: "OFF", color: "#9E9E9E" },
+    AUTH: { text: "AUTH", color: "#F44336" }
+  };
+  return config[stateName] || config.OFF;
+}
+
+async function setBadge(stateName) {
+  const badge = getBadgeConfig(stateName);
+  await chrome.action.setBadgeBackgroundColor({ color: badge.color });
+  await setBadgeTextColor("#FFFFFF");
+  await chrome.action.setBadgeText({ text: badge.text });
 }
 
 async function clearBadge() {
@@ -52,50 +70,107 @@ async function updateBadge(state) {
     return;
   }
 
-  if (!state.isAvailable) {
-    await chrome.action.setBadgeBackgroundColor({ color: "#DC2626" });
-    await setBadgeTextColor("#FFFFFF");
-    await chrome.action.setBadgeText({ text: "OFF" });
+  if (state.requiresAuth) {
+    await setBadge("AUTH");
     return;
   }
 
-  await chrome.action.setBadgeBackgroundColor({ color: "#16A34A" });
-  await setBadgeTextColor("#FFFFFF");
+  if (!state.isAvailable) {
+    await setBadge("OFF");
+    return;
+  }
 
   if (state.isSyncing && state.pendingCount > 0) {
-    await chrome.action.setBadgeText({ text: "ING" });
+    await setBadge("ING");
     return;
   }
 
-  await chrome.action.setBadgeText({ text: "ON" });
+  await setBadge("ON");
+}
+
+async function setState(state) {
+  await chrome.storage.local.set({ [UPLOAD_STATE_KEY]: state });
+  await updateBadge(state);
 }
 
 async function refreshBadgeFromCurrentState() {
   await updateBadge(await getState());
 }
 
-async function getWindowFileMap() {
-  const result = await chrome.storage.local.get(WINDOW_FILE_MAP_KEY);
-  return result[WINDOW_FILE_MAP_KEY] || {};
+function getFileMapKey(windowId) {
+  return `${FILE_MAP_PREFIX}${windowId ?? "default"}`;
 }
 
-async function setWindowFileMap(windowFileMap) {
-  await chrome.storage.local.set({ [WINDOW_FILE_MAP_KEY]: windowFileMap });
-}
-
-async function getAccessToken() {
-  try {
-    const cached = await chrome.identity.getAuthToken({ interactive: false });
-    if (typeof cached === "string" && cached) return cached;
-    if (cached?.token) return cached.token;
-  } catch (error) {
-    // Fall through to interactive auth.
+function buildSyncPayloadFromMessage(message, windowId) {
+  if (message?.type === "SYNC_CONVERSATION") {
+    return {
+      content: String(message.content || ""),
+      mimeType: "text/markdown",
+      windowId: windowId ?? "default"
+    };
   }
 
-  const result = await chrome.identity.getAuthToken({ interactive: true });
-  if (typeof result === "string" && result) return result;
-  if (result?.token) return result.token;
-  throw new Error("未获取到 Google Drive access token");
+  return {
+    ...message.payload,
+    windowId: windowId ?? "default"
+  };
+}
+
+async function getAuthToken(interactive = false) {
+  return new Promise((resolve, reject) => {
+    chrome.identity.getAuthToken({ interactive }, (token) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+
+      resolve(token || "");
+    });
+  });
+}
+
+async function removeCachedToken(token) {
+  return new Promise((resolve) => {
+    chrome.identity.removeCachedAuthToken({ token }, resolve);
+  });
+}
+
+function isAuthError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    message.includes("oauth2 not granted") ||
+    message.includes("user did not approve access") ||
+    message.includes("user canceled") ||
+    message.includes("login required") ||
+    message.includes("not signed in")
+  );
+}
+
+async function getValidToken() {
+  let token = "";
+
+  try {
+    token = await getAuthToken(false);
+  } catch (error) {
+    if (!isAuthError(error)) {
+      throw error;
+    }
+  }
+
+  if (!token) {
+    token = await getAuthToken(true);
+  }
+
+  const res = await fetch(
+    `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${encodeURIComponent(token)}`
+  );
+
+  if (!res.ok) {
+    await removeCachedToken(token);
+    token = await getAuthToken(true);
+  }
+
+  return token;
 }
 
 function buildDriveError(action, response, responseText) {
@@ -105,169 +180,229 @@ function buildDriveError(action, response, responseText) {
   return error;
 }
 
-function shouldReplaceMappedFile(error) {
-  const status = Number(error?.status || 0);
-  const message = String(error?.message || "");
-  const responseText = String(error?.responseText || "");
-  const haystack = `${message}\n${responseText}`.toLowerCase();
-
-  if ([403, 404, 410].includes(status)) {
-    return true;
-  }
-
-  return [
-    "notfound",
-    "file not found",
-    "filenotfound",
-    "insufficientfilepermissions",
-    "cannot find file",
-    "trashed"
-  ].some((keyword) => haystack.includes(keyword));
-}
-
-function buildMultipartBody(metadata, content, mimeType) {
-  const boundary = "foo_bar_baz";
-  const delimiter = `--${boundary}\r\n`;
-  const closeDelim = `\r\n--${boundary}--`;
-
-  const multipartRequestBody =
-    delimiter +
-    "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
-    JSON.stringify(metadata) +
-    "\r\n" +
-    delimiter +
-    `Content-Type: ${mimeType}; charset=UTF-8\r\n\r\n` +
-    content +
-    closeDelim;
-
-  return { boundary, multipartRequestBody };
-}
-
-async function fetchDriveFileMetadata(fileId) {
-  const token = await getAccessToken();
-  const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,trashed,parents&supportsAllDrives=true`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+async function driveFetch(url, options = {}) {
+  let token = await getValidToken();
+  let response = await fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`
     }
-  );
+  });
 
-  const text = await response.text();
-  if (!response.ok) {
-    throw buildDriveError("获取文件状态失败", response, text);
+  if (response.status !== 401) {
+    return response;
   }
 
-  return JSON.parse(text);
+  await removeCachedToken(token);
+  token = await getAuthToken(true);
+
+  response = await fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  return response;
 }
 
-async function createTextFileInDrive({ filename, content, mimeType = "text/markdown" }) {
-  const token = await getAccessToken();
-  const metadata = {
-    name: filename,
-    parents: [DRIVE_FOLDER_ID]
-  };
-  const { boundary, multipartRequestBody } = buildMultipartBody(metadata, content, mimeType);
+// ===== Google Drive folder management =====
 
-  const response = await fetch(
-    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink&supportsAllDrives=true",
+async function validateFolder(token, folderId) {
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,trashed,mimeType`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+
+    if (!res.ok) return false;
+    const data = await res.json();
+    return !data.trashed && data.mimeType === "application/vnd.google-apps.folder";
+  } catch {
+    return false;
+  }
+}
+
+async function getOrCreateFolder(token) {
+  const cached = await chrome.storage.local.get(FOLDER_STORAGE_KEY);
+  if (cached[FOLDER_STORAGE_KEY]) {
+    const folderId = cached[FOLDER_STORAGE_KEY];
+    const valid = await validateFolder(token, folderId);
+    if (valid) return folderId;
+  }
+
+  const searchUrl =
+    "https://www.googleapis.com/drive/v3/files?" +
+    new URLSearchParams({
+      q: `name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: "files(id,name)",
+      spaces: "drive"
+    });
+
+  const searchRes = await fetch(searchUrl, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const searchText = await searchRes.text();
+  if (!searchRes.ok) {
+    throw buildDriveError("Search folder failed", searchRes, searchText);
+  }
+
+  const searchData = JSON.parse(searchText);
+  if (searchData.files && searchData.files.length > 0) {
+    const folderId = searchData.files[0].id;
+    await chrome.storage.local.set({ [FOLDER_STORAGE_KEY]: folderId });
+    return folderId;
+  }
+
+  const createRes = await fetch("https://www.googleapis.com/drive/v3/files", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      name: FOLDER_NAME,
+      mimeType: "application/vnd.google-apps.folder"
+    })
+  });
+  const createText = await createRes.text();
+  if (!createRes.ok) {
+    throw buildDriveError("Create folder failed", createRes, createText);
+  }
+
+  const folder = JSON.parse(createText);
+  await chrome.storage.local.set({ [FOLDER_STORAGE_KEY]: folder.id });
+  return folder.id;
+}
+
+// ===== File upload / update =====
+
+async function validateFile(token, fileId, folderId) {
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,trashed,parents`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (data.trashed) return false;
+    if (folderId && Array.isArray(data.parents) && !data.parents.includes(folderId)) {
+      return false;
+    }
+    return Boolean(data.id);
+  } catch {
+    return false;
+  }
+}
+
+async function createFile(token, folderId, fileName, content) {
+  const metadata = {
+    name: fileName,
+    mimeType: "text/markdown",
+    parents: [folderId]
+  };
+
+  const form = new FormData();
+  form.append(
+    "metadata",
+    new Blob([JSON.stringify(metadata)], { type: "application/json" })
+  );
+  form.append("file", new Blob([content], { type: "text/markdown" }));
+
+  const res = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": `multipart/related; boundary=${boundary}`
-      },
-      body: multipartRequestBody
+      headers: { Authorization: `Bearer ${token}` },
+      body: form
     }
   );
-
-  const text = await response.text();
-  if (!response.ok) {
-    throw buildDriveError("上传失败", response, text);
+  const text = await res.text();
+  if (!res.ok) {
+    throw buildDriveError("Create file failed", res, text);
   }
 
-  return JSON.parse(text);
+  const data = JSON.parse(text);
+  return data.id;
 }
 
-async function updateTextFileInDrive(fileId, { filename, content, mimeType = "text/markdown" }) {
-  const token = await getAccessToken();
-  const metadata = { name: filename };
-  const { boundary, multipartRequestBody } = buildMultipartBody(metadata, content, mimeType);
-
-  const response = await fetch(
-    `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart&fields=id,name,webViewLink&supportsAllDrives=true`,
+async function updateFile(token, fileId, content) {
+  const res = await fetch(
+    `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
     {
       method: "PATCH",
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": `multipart/related; boundary=${boundary}`
+        "Content-Type": "text/markdown"
       },
-      body: multipartRequestBody
+      body: content
     }
   );
 
-  const text = await response.text();
-  if (!response.ok) {
-    throw buildDriveError("更新失败", response, text);
+  const text = await res.text();
+  if (!res.ok) {
+    throw buildDriveError("Update file failed", res, text);
+  }
+}
+
+async function syncToDrive(windowId, markdownContent) {
+  let token = await getValidToken();
+  let folderId = await getOrCreateFolder(token);
+  const fileName = `chatgpt-window-${windowId}.md`;
+  const fileMapKey = getFileMapKey(windowId);
+  const cached = await chrome.storage.local.get(fileMapKey);
+  let fileId = cached[fileMapKey] || null;
+
+  if (fileId) {
+    const valid = await validateFile(token, fileId, folderId);
+    if (!valid) fileId = null;
   }
 
-  return JSON.parse(text);
-}
-
-function buildWindowFileName(windowId) {
-  return `chatgpt-window-${windowId}.md`;
-}
-
-async function isMappedFileUsable(fileId) {
   try {
-    const metadata = await fetchDriveFileMetadata(fileId);
-    if (metadata?.trashed) {
-      return false;
+    if (fileId) {
+      await updateFile(token, fileId, markdownContent);
+      return { fileId, fileName };
     }
 
-    if (Array.isArray(metadata?.parents) && !metadata.parents.includes(DRIVE_FOLDER_ID)) {
-      return false;
-    }
-
-    return Boolean(metadata?.id);
+    fileId = await createFile(token, folderId, fileName, markdownContent);
+    await chrome.storage.local.set({ [fileMapKey]: fileId });
+    return { fileId, fileName };
   } catch (error) {
-    if (shouldReplaceMappedFile(error)) {
-      return false;
+    if (error?.status !== 401) {
+      throw error;
     }
 
-    throw error;
+    await removeCachedToken(token);
+    token = await getAuthToken(true);
+    folderId = await getOrCreateFolder(token);
+
+    if (fileId) {
+      await updateFile(token, fileId, markdownContent);
+      return { fileId, fileName };
+    }
+
+    fileId = await createFile(token, folderId, fileName, markdownContent);
+    await chrome.storage.local.set({ [fileMapKey]: fileId });
+    return { fileId, fileName };
   }
 }
 
-async function uploadConversationFile(payload) {
-  const windowId = payload.windowId ?? "default";
-  const filename = buildWindowFileName(windowId);
-  const uploadPayload = {
-    filename,
-    content: payload.content,
-    mimeType: payload.mimeType || "text/markdown"
+function buildFailedItem(payload, error, retry) {
+  return {
+    id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
+    payload: {
+      ...payload,
+      filename: `chatgpt-window-${payload.windowId ?? "default"}.md`
+    },
+    error: error.message,
+    retry
   };
-
-  const windowFileMap = await getWindowFileMap();
-  const existingFileId = windowFileMap[windowId];
-
-  if (existingFileId) {
-    const canReuse = await isMappedFileUsable(existingFileId);
-    if (canReuse) {
-      await updateTextFileInDrive(existingFileId, uploadPayload);
-      return { filename };
-    }
-
-    delete windowFileMap[windowId];
-    await setWindowFileMap(windowFileMap);
-  }
-
-  const createdFile = await createTextFileInDrive(uploadPayload);
-  windowFileMap[windowId] = createdFile.id;
-  await setWindowFileMap(windowFileMap);
-  return { filename };
 }
 
 async function markItemFinished() {
@@ -275,6 +410,19 @@ async function markItemFinished() {
   state.pendingCount = Math.max(0, state.pendingCount - 1);
   state.isSyncing = state.pendingCount > 0 || uploadQueue.length > 0;
   state.isAvailable = true;
+  state.requiresAuth = false;
+  state.lastSyncTime = new Date().toISOString();
+  await setState(state);
+}
+
+async function markItemFailed(item, error) {
+  const state = await getState();
+  state.lastErrorNotice = isAuthError(error) ? "Google authorization is required" : "File upload failed";
+  state.isAvailable = !isAuthError(error);
+  state.requiresAuth = isAuthError(error);
+  state.failedItems.push(buildFailedItem(item.payload, error, item.retry));
+  state.pendingCount = Math.max(0, state.pendingCount - 1);
+  state.isSyncing = state.pendingCount > 0 || uploadQueue.length > 0;
   await setState(state);
 }
 
@@ -285,29 +433,15 @@ async function processQueue() {
   const item = uploadQueue.shift();
 
   try {
-    await uploadConversationFile(item.payload);
+    await syncToDrive(item.payload.windowId ?? "default", item.payload.content);
     await markItemFinished();
   } catch (error) {
     item.retry = (item.retry || 0) + 1;
 
-    if (item.retry < MAX_RETRY) {
+    if (item.retry < MAX_RETRY && !isAuthError(error)) {
       uploadQueue.push(item);
     } else {
-      const state = await getState();
-      state.lastErrorNotice = "文件上传失败";
-      state.isAvailable = false;
-      state.failedItems.push({
-        id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
-        payload: {
-          ...item.payload,
-          filename: buildWindowFileName(item.payload.windowId ?? "default")
-        },
-        error: error.message,
-        retry: item.retry
-      });
-      state.pendingCount = Math.max(0, state.pendingCount - 1);
-      state.isSyncing = state.pendingCount > 0 || uploadQueue.length > 0;
-      await setState(state);
+      await markItemFailed(item, error);
     }
   } finally {
     processing = false;
@@ -330,10 +464,85 @@ async function enqueueUpload(payload) {
   state.pendingCount += 1;
   state.isSyncing = true;
   state.isAvailable = true;
+  state.requiresAuth = false;
   await setState(state);
 
   uploadQueue.push({ payload, retry: 0 });
   void processQueue();
+}
+
+async function getStatusSummary() {
+  const [state, hasChatGPTTab] = await Promise.all([getState(), hasOpenChatGPTTab()]);
+  let badgeState = "OFF";
+
+  if (hasChatGPTTab) {
+    if (state.requiresAuth) {
+      badgeState = "AUTH";
+    } else if (!state.isAvailable) {
+      badgeState = "OFF";
+    } else if (state.isSyncing && state.pendingCount > 0) {
+      badgeState = "ING";
+    } else {
+      badgeState = "ON";
+    }
+  }
+
+  return {
+    state: badgeState,
+    lastSyncTime: state.lastSyncTime || "",
+    hasChatGPTTab,
+    details: state
+  };
+}
+
+async function getFailedTasks() {
+  const state = await getState();
+  return state.failedItems.map((item) => ({
+    id: item.id,
+    windowId: item.payload?.windowId ?? "default",
+    filename: item.payload?.filename || "",
+    error: item.error || "Unknown error",
+    retry: item.retry || 0
+  }));
+}
+
+async function retryFailedTaskById(taskId) {
+  const state = await getState();
+  const index = state.failedItems.findIndex((item) => item.id === taskId);
+  if (index < 0) {
+    throw new Error("Failed task not found");
+  }
+
+  const [failedItem] = state.failedItems.splice(index, 1);
+  state.pendingCount += 1;
+  state.isSyncing = true;
+  state.isAvailable = true;
+  state.requiresAuth = false;
+  await setState(state);
+
+  uploadQueue.push({ payload: failedItem.payload, retry: 0 });
+  void processQueue();
+}
+
+async function retryAllFailedTasks() {
+  const state = await getState();
+  if (state.failedItems.length === 0) {
+    return 0;
+  }
+
+  const queuedItems = state.failedItems.splice(0, state.failedItems.length);
+  state.pendingCount += queuedItems.length;
+  state.isSyncing = true;
+  state.isAvailable = true;
+  state.requiresAuth = false;
+  await setState(state);
+
+  queuedItems.forEach((item) => {
+    uploadQueue.push({ payload: item.payload, retry: 0 });
+  });
+  void processQueue();
+
+  return queuedItems.length;
 }
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -364,12 +573,9 @@ chrome.windows.onFocusChanged.addListener(() => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message?.type) return;
 
-  if (message.type === "ENQUEUE_UPLOAD") {
+  if (message.type === "ENQUEUE_UPLOAD" || message.type === "SYNC_CONVERSATION") {
     const windowId = sender?.tab?.windowId;
-    enqueueUpload({
-      ...message.payload,
-      windowId
-    })
+    enqueueUpload(buildSyncPayloadFromMessage(message, windowId))
       .then(() => sendResponse({ ok: true }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
@@ -378,6 +584,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "GET_UPLOAD_STATUS") {
     Promise.all([getState(), hasOpenChatGPTTab()])
       .then(([state, hasChatGPTTab]) => sendResponse({ ok: true, state: { ...state, hasChatGPTTab } }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (message.type === "GET_STATUS") {
+    getStatusSummary()
+      .then((summary) => sendResponse({ ok: true, ...summary }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (message.type === "GET_FAILED_TASKS") {
+    getFailedTasks()
+      .then((tasks) => sendResponse({ ok: true, tasks }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
@@ -394,25 +614,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "RETRY_FAILED_UPLOAD") {
+    retryFailedTaskById(message.id)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (message.type === "RETRY_TASK") {
     getState()
       .then(async (state) => {
-        const index = state.failedItems.findIndex((item) => item.id === message.id);
-        if (index < 0) {
-          sendResponse({ ok: false, error: "未找到失败任务" });
+        const task = state.failedItems[Number(message.index)];
+        if (!task?.id) {
+          sendResponse({ ok: false, error: "Failed task not found" });
           return;
         }
 
-        const [failedItem] = state.failedItems.splice(index, 1);
-        state.pendingCount += 1;
-        state.isSyncing = true;
-        state.isAvailable = true;
-        await setState(state);
-
-        uploadQueue.push({ payload: failedItem.payload, retry: 0 });
-        void processQueue();
-
+        await retryFailedTaskById(task.id);
         sendResponse({ ok: true });
       })
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (message.type === "RETRY_ALL") {
+    retryAllFailedTasks()
+      .then((count) => sendResponse({ ok: true, count }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }

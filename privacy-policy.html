@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - ChatGPT Auto Save to Google Drive</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #4b5563;
+      --accent: #1a73e8;
+      --border: #dbe4f0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 100%);
+      color: var(--text);
+      line-height: 1.7;
+    }
+
+    .wrap {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 48px 20px 72px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 32px 28px;
+      box-shadow: 0 10px 30px rgba(26, 39, 68, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 2rem;
+      line-height: 1.2;
+    }
+
+    .intro {
+      margin: 0 0 28px;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    h2 {
+      margin: 28px 0 10px;
+      font-size: 1.2rem;
+      color: #132238;
+    }
+
+    p,
+    ul {
+      margin: 0 0 14px;
+    }
+
+    ul {
+      padding-left: 22px;
+    }
+
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      background: #eef3fb;
+      border-radius: 6px;
+      padding: 1px 6px;
+      color: #123a73;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 640px) {
+      .wrap {
+        padding: 24px 14px 40px;
+      }
+
+      .card {
+        padding: 22px 18px;
+        border-radius: 14px;
+      }
+
+      h1 {
+        font-size: 1.6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <article class="card">
+      <h1>Privacy Policy - ChatGPT Auto Save to Google Drive</h1>
+      <p class="intro">
+        This page explains how ChatGPT Auto Save to Google Drive handles user data.
+      </p>
+
+      <h2>Data Collection</h2>
+      <p>
+        This extension reads the content of your ChatGPT conversations directly from the browser page DOM.
+        The content is sent exclusively to your own Google Drive account.
+      </p>
+
+      <h2>Data Storage</h2>
+      <ul>
+        <li>NO conversation data is stored on any external server.</li>
+        <li>All data flows directly from your browser to your personal Google Drive.</li>
+        <li>OAuth tokens are managed by Chrome's built-in identity API and stored locally.</li>
+      </ul>
+
+      <h2>Data Sharing</h2>
+      <ul>
+        <li>We do NOT collect, store, or share any user data.</li>
+        <li>We do NOT have access to your Google Drive files.</li>
+        <li>We do NOT track usage analytics.</li>
+      </ul>
+
+      <h2>Permissions Explained</h2>
+      <ul>
+        <li><code>identity</code>: Required for Google OAuth authorization.</li>
+        <li><code>storage</code>: Required for storing sync state locally in your browser.</li>
+        <li><code>tabs</code>: Required for detecting ChatGPT tabs.</li>
+        <li><code>alarms</code>: Reserved for extension runtime scheduling.</li>
+        <li><code>host_permissions</code> on <code>chatgpt.com</code> and <code>chat.openai.com</code>: Required for reading conversation content.</li>
+        <li><code>host_permissions</code> on <code>googleapis.com</code>: Required for Google Drive API calls.</li>
+      </ul>
+
+      <h2>Contact</h2>
+      <p>
+        <a href="mailto:zm@noyan.cn">zm@noyan.cn</a>
+      </p>
+
+      <p class="footer">
+        Last updated: April 19, 2026
+      </p>
+    </article>
+  </main>
+</body>
+</html>

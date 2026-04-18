@@ -1,0 +1,31 @@
+ChatGPT Auto Save to Google Drive automatically detects changes in your ChatGPT conversations and syncs the latest conversation snapshot to your Google Drive as a Markdown file.
+
+Key features:
+- Automatically watches ChatGPT tabs on chatgpt.com and chat.openai.com
+- Saves one Markdown file per browser window and updates it in place
+- Creates or reuses a dedicated Google Drive folder automatically
+- Uses the safer Google Drive scope: drive.file
+- Includes retry handling for failed uploads
+- Shows authorization, sync state, and failed tasks in the popup
+
+How it works:
+1. The extension reads the visible conversation content from the ChatGPT page DOM.
+2. When the conversation changes, it generates a Markdown snapshot.
+3. The snapshot is uploaded directly from your browser to your own Google Drive.
+4. No external server is used for storage or processing.
+
+Permissions explained:
+- identity: required for Google OAuth authorization
+- storage: required for local sync state and file mapping cache
+- tabs: required to detect ChatGPT tabs and update badge state
+- alarms: reserved for extension runtime scheduling
+- host permissions on chatgpt.com / chat.openai.com: required to read conversation content
+- host permissions on googleapis.com: required to access the Google Drive API
+
+Privacy summary:
+- No conversation data is sent to any developer-controlled server
+- No analytics or usage tracking is included
+- Data is stored only in your own Google Drive account
+
+Contact:
+zm@noyan.cn

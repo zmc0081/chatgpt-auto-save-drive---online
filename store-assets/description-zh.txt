@@ -1,0 +1,31 @@
+ChatGPT Auto Save to Google Drive 会自动检测你在 ChatGPT 中的对话变化，并将最新对话快照同步到你的 Google Drive，保存为 Markdown 文件。
+
+核心功能：
+- 自动监听 chatgpt.com 与 chat.openai.com 中的对话变化
+- 每个浏览器窗口对应一个 Markdown 文件，并持续覆盖更新
+- 自动创建或复用专用的 Google Drive 文件夹
+- 使用更安全的 Google Drive 权限范围：drive.file
+- 内置失败重试机制
+- 在 popup 中展示授权状态、同步状态和失败任务
+
+工作方式：
+1. 扩展从 ChatGPT 页面 DOM 中读取当前可见对话内容。
+2. 当检测到对话变化时，自动生成 Markdown 快照。
+3. 快照会直接从浏览器上传到你自己的 Google Drive。
+4. 全流程不依赖任何开发者控制的外部服务器。
+
+权限说明：
+- identity：用于 Google OAuth 授权
+- storage：用于本地保存同步状态和文件映射缓存
+- tabs：用于识别 ChatGPT 标签页并更新徽标状态
+- alarms：用于扩展运行时调度
+- chatgpt.com / chat.openai.com 的 host permissions：用于读取对话内容
+- googleapis.com 的 host permissions：用于调用 Google Drive API
+
+隐私说明：
+- 不会将对话内容发送到开发者服务器
+- 不包含统计分析或使用追踪
+- 数据仅保存在你自己的 Google Drive 账户中
+
+联系方式：
+zm@noyan.cn
