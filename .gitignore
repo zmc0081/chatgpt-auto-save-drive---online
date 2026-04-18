@@ -1,6 +1,7 @@
 key.pem
 *.pem
 *.zip
+.Rhistory
 .env
 config.local.js
 node_modules/
