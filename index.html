@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatGPT Auto Save to Google Drive</title>
+  <meta name="description" content="Automatically sync your ChatGPT conversations to your Google Drive as Markdown files.">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #08111f;
+      --panel: rgba(12, 25, 48, 0.82);
+      --panel-border: rgba(122, 162, 247, 0.18);
+      --text: #eef4ff;
+      --muted: #b5c4db;
+      --accent: #4c8dff;
+      --accent-2: #55c784;
+      --card: #ffffff;
+      --card-text: #1f2937;
+      --card-muted: #5b6779;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(76, 141, 255, 0.28), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(85, 199, 132, 0.18), transparent 26%),
+        linear-gradient(180deg, #09101d 0%, #0b1628 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .wrap {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 40px 20px 72px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 28px;
+      align-items: stretch;
+    }
+
+    .intro {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(76, 141, 255, 0.14);
+      color: #dbe8ff;
+      font-size: 0.92rem;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-2);
+      box-shadow: 0 0 0 6px rgba(85, 199, 132, 0.12);
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .lead {
+      margin: 0 0 24px;
+      color: var(--muted);
+      font-size: 1.06rem;
+      max-width: 60ch;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 0 18px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: transform 0.16s ease, opacity 0.16s ease, background 0.16s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      opacity: 0.96;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #1a73e8, #4c8dff);
+      color: #ffffff;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text);
+    }
+
+    .feature-list {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .feature-list li {
+      display: flex;
+      gap: 12px;
+      color: var(--muted);
+    }
+
+    .feature-list li::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      margin-top: 8px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      background: var(--accent-2);
+    }
+
+    .preview {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 251, 255, 0.96));
+      border-radius: 24px;
+      padding: 24px;
+      color: var(--card-text);
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+    }
+
+    .preview-card {
+      background: #ffffff;
+      border: 1px solid #dbe5f2;
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(20, 38, 73, 0.08);
+    }
+
+    .preview-card h2 {
+      margin: 0 0 16px;
+      font-size: 1.15rem;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #edf2f8;
+    }
+
+    .status-row:last-child {
+      border-bottom: none;
+    }
+
+    .status-label {
+      color: var(--card-muted);
+      font-size: 0.95rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #1d4d2a;
+    }
+
+    .badge::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #55c784;
+    }
+
+    .section {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .info-card {
+      background: rgba(255, 255, 255, 0.96);
+      color: var(--card-text);
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 8px 24px rgba(19, 32, 56, 0.1);
+    }
+
+    .info-card h3 {
+      margin: 0 0 10px;
+      font-size: 1.05rem;
+    }
+
+    .info-card p {
+      margin: 0;
+      color: var(--card-muted);
+      font-size: 0.95rem;
+    }
+
+    .footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 0.94rem;
+      text-align: center;
+    }
+
+    .footer a {
+      color: #dce8ff;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 900px) {
+      .hero,
+      .section {
+        grid-template-columns: 1fr;
+      }
+
+      .wrap {
+        padding: 22px 14px 40px;
+      }
+
+      .intro,
+      .preview {
+        padding: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="intro">
+        <div class="eyebrow">Chrome Extension for ChatGPT + Google Drive</div>
+        <h1>ChatGPT Auto Save to Google Drive</h1>
+        <p class="lead">
+          Automatically detect changes in your ChatGPT conversations and save the latest snapshot
+          to your own Google Drive as a Markdown file. No developer-controlled server is used.
+        </p>
+
+        <div class="actions">
+          <a class="btn btn-primary" href="privacy-policy.html">View Privacy Policy</a>
+          <a class="btn btn-secondary" href="https://github.com/zmc0081/chatgpt-auto-save-drive---online" target="_blank" rel="noreferrer">View GitHub Repository</a>
+        </div>
+
+        <ul class="feature-list">
+          <li>Reads visible ChatGPT conversation content directly from the page DOM.</li>
+          <li>Saves one Markdown file per browser window and updates it in place.</li>
+          <li>Uses Google OAuth and the safer <code>drive.file</code> scope.</li>
+          <li>Stores data only in the user's own Google Drive account.</li>
+        </ul>
+      </div>
+
+      <aside class="preview">
+        <div class="preview-card">
+          <h2>Example Extension Status</h2>
+
+          <div class="status-row">
+            <span class="status-label">Authorization</span>
+            <span class="badge">Authorized</span>
+          </div>
+
+          <div class="status-row">
+            <span class="status-label">Sync Status</span>
+            <span class="badge">Watching for changes</span>
+          </div>
+
+          <div class="status-row">
+            <span class="status-label">Target Folder</span>
+            <span>ChatGPT-AutoSave</span>
+          </div>
+
+          <div class="status-row">
+            <span class="status-label">Output Format</span>
+            <span>Markdown</span>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="section">
+      <article class="info-card">
+        <h3>Single Purpose</h3>
+        <p>
+          The extension exists for one purpose only: saving ChatGPT conversation content to the
+          user's own Google Drive as Markdown files.
+        </p>
+      </article>
+
+      <article class="info-card">
+        <h3>Permissions</h3>
+        <p>
+          Uses <code>identity</code>, <code>storage</code>, <code>tabs</code>, and required host permissions for
+          ChatGPT pages and Google Drive API requests.
+        </p>
+      </article>
+
+      <article class="info-card">
+        <h3>Support</h3>
+        <p>
+          For repository information or support requests, visit the public GitHub repository or open
+          an issue.
+        </p>
+      </article>
+    </section>
+
+    <p class="footer">
+      Contact: <a href="mailto:zm891104@foxmail.com">zm891104@foxmail.com</a>
+      &nbsp;|&nbsp;
+      Support: <a href="https://github.com/zmc0081/chatgpt-auto-save-drive---online/issues" target="_blank" rel="noreferrer">GitHub Issues</a>
+    </p>
+  </main>
+</body>
+</html>
