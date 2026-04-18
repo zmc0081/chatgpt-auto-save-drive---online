@@ -17,7 +17,6 @@ This extension reads the content of your ChatGPT conversations directly from the
 - `identity`: Required for Google OAuth authorization.
 - `storage`: Required for storing sync state locally in your browser.
 - `tabs`: Required for detecting ChatGPT tabs.
-- `alarms`: Reserved for extension runtime scheduling.
 - `host_permissions` on `chatgpt.com` and `chat.openai.com`: Required for reading conversation content.
 - `host_permissions` on `googleapis.com`: Required for Google Drive API calls.
 

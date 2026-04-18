@@ -6,8 +6,7 @@
   "permissions": [
     "identity",
     "storage",
-    "tabs",
-    "alarms"
+    "tabs"
   ],
   "host_permissions": [
     "https://chatgpt.com/*",

@@ -18,7 +18,6 @@ Permissions explained:
 - identity: required for Google OAuth authorization
 - storage: required for local sync state and file mapping cache
 - tabs: required to detect ChatGPT tabs and update badge state
-- alarms: reserved for extension runtime scheduling
 - host permissions on chatgpt.com / chat.openai.com: required to read conversation content
 - host permissions on googleapis.com: required to access the Google Drive API
 
