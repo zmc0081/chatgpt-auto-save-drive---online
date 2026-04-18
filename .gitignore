@@ -1,0 +1,5 @@
+*.pem
+.env
+config.local.js
+node_modules/
+.DS_Store
