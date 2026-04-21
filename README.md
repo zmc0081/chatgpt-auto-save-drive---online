@@ -18,7 +18,7 @@
 | English | 中文 |
 | --- | --- |
 | Auto-detects conversation updates on `chatgpt.com` and `chat.openai.com` | 自动检测 `chatgpt.com` 与 `chat.openai.com` 上的对话更新 |
-| Saves one Markdown file per browser window and updates it in place | 每个浏览器窗口对应一个 Markdown 文件，并持续原地更新 |
+| Names Markdown files as `ChatGPT title + YYYY-MM-DD`, creates a new file for a new title, and merges same-title content into the same daily file | 以“ChatGPT 标题 + YYYY-MM-DD”命名 Markdown 文件；出现新标题时新建文件，同标题内容则合并到当天同一个文件中 |
 | Creates or reuses a dedicated Google Drive folder automatically | 自动创建或复用专用的 Google Drive 文件夹 |
 | Uses Google OAuth with the safer `drive.file` scope | 使用 Google OAuth，并采用更安全的 `drive.file` 权限范围 |
 | Shows authorization, sync status, and failed tasks in the popup | 在弹窗中展示授权状态、同步状态和失败任务 |
@@ -60,7 +60,7 @@ chatgpt-auto-save-drive---online/
 | 2 | The extension extracts the current conversation from the page DOM and converts it to Markdown. | 扩展从页面 DOM 中提取当前对话，并转换为 Markdown。 |
 | 3 | When the snapshot changes, the content script sends a sync task to `background.js`. | 当对话快照变化时，内容脚本会向 `background.js` 发送同步任务。 |
 | 4 | `background.js` gets a valid Google OAuth token and creates or reuses the Drive folder. | `background.js` 获取有效的 Google OAuth token，并创建或复用 Drive 文件夹。 |
-| 5 | The extension updates the existing window-bound file or creates a new one in Google Drive. | 扩展会更新当前窗口对应的文件，或在 Google Drive 中创建新文件。 |
+| 5 | The extension creates a new daily Markdown file when the page title changes, and merges same-title conversation snapshots into the existing daily file. | 当页面标题变化时，扩展会创建新的当日 Markdown 文件；若标题相同，则把会话快照合并到当天已有文件中。 |
 | 6 | `popup.js` displays authorization state, sync status, last sync time, and failed tasks. | `popup.js` 展示授权状态、同步状态、最近同步时间和失败任务。 |
 
 ## Current Permissions | 当前权限
@@ -134,7 +134,7 @@ The current manifest already uses:
 | 2 | Authorize Google Drive in the extension popup if prompted | 如有提示，在扩展弹窗中完成 Google Drive 授权 |
 | 3 | Start or continue a conversation | 开始新对话或继续已有对话 |
 | 4 | Wait for the page content to change | 等待页面内容发生变化 |
-| 5 | The extension syncs the current window conversation to Google Drive automatically | 扩展会自动将当前窗口中的对话同步到 Google Drive |
+| 5 | The extension syncs the current conversation into the daily title-based Markdown file in Google Drive automatically | 扩展会自动将当前对话同步到 Google Drive 中按标题和日期归档的 Markdown 文件 |
 | 6 | Open the popup to check authorization, sync state, and failed tasks | 打开弹窗查看授权状态、同步状态和失败任务 |
 
 ## Popup Overview | 弹窗概览

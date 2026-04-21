@@ -2,7 +2,7 @@ ChatGPT Auto Save to Google Drive automatically detects changes in your ChatGPT 
 
 Key features:
 - Automatically watches ChatGPT tabs on chatgpt.com and chat.openai.com
-- Saves one Markdown file per browser window and updates it in place
+- Names files as ChatGPT title plus date, creates a new file for a new title, and merges same-title content into the same daily Markdown file
 - Creates or reuses a dedicated Google Drive folder automatically
 - Uses the safer Google Drive scope: drive.file
 - Includes retry handling for failed uploads

@@ -97,8 +97,120 @@ async function refreshBadgeFromCurrentState() {
   await updateBadge(await getState());
 }
 
-function getFileMapKey(windowId) {
-  return `${FILE_MAP_PREFIX}${windowId ?? "default"}`;
+function getFileMapKey(key) {
+  return `${FILE_MAP_PREFIX}${key ?? "default"}`;
+}
+
+function sanitizeFileNamePart(value, fallback = "conversation") {
+  const sanitized = String(value || "")
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+
+  return sanitized || fallback;
+}
+
+function buildFileDateStamp(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function buildFileBucketKey(payload = {}) {
+  const titleKey = sanitizeFileNamePart(payload.conversationTitle, "chatgpt-conversation")
+    .toLowerCase();
+  return `${titleKey}_${buildFileDateStamp()}`;
+}
+
+function buildConversationSectionKey(payload = {}) {
+  if (payload.conversationId) {
+    return `conversation_${payload.conversationId}`;
+  }
+
+  if (payload.pageUrl) {
+    return `url_${payload.pageUrl}`;
+  }
+
+  return `window_${payload.windowId ?? "default"}`;
+}
+
+function buildFileName(payload = {}) {
+  const titlePart = sanitizeFileNamePart(payload.conversationTitle, "ChatGPT Conversation");
+  return `${titlePart} ${buildFileDateStamp()}.md`;
+}
+
+function buildSectionLabel(payload = {}) {
+  if (payload.conversationId) {
+    return `Conversation ${payload.conversationId}`;
+  }
+
+  if (payload.pageUrl) {
+    return payload.pageUrl;
+  }
+
+  return `Window ${payload.windowId ?? "default"}`;
+}
+
+function stripConversationHeader(content) {
+  return String(content || "")
+    .replace(/^# ChatGPT Conversation\s*\n> Synced at: .*?\n\n---\n\n/s, "")
+    .trim();
+}
+
+function buildDocumentHeader(payload = {}) {
+  const title = payload.conversationTitle || "ChatGPT Conversation";
+  const date = buildFileDateStamp();
+  return `# ${title}\n\n> Archive date: ${date}\n> Source: ChatGPT Auto Save to Google Drive\n`;
+}
+
+function buildConversationSection(payload = {}) {
+  const sectionLabel = buildSectionLabel(payload);
+  const sourceLines = [
+    `## ${sectionLabel}`,
+    "",
+    `> Last synced: ${new Date().toISOString()}`
+  ];
+
+  if (payload.pageUrl) {
+    sourceLines.push(`> URL: ${payload.pageUrl}`);
+  }
+
+  if (payload.conversationId) {
+    sourceLines.push(`> Conversation ID: ${payload.conversationId}`);
+  }
+
+  const body = stripConversationHeader(payload.content);
+  return `${sourceLines.join("\n")}\n\n${body}\n`;
+}
+
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function mergeConversationContent(existingContent, payload = {}) {
+  const sectionKey = buildConversationSectionKey(payload);
+  const startMarker = `<!-- AUTOSAVE SECTION START: ${sectionKey} -->`;
+  const endMarker = `<!-- AUTOSAVE SECTION END: ${sectionKey} -->`;
+  const sectionBlock =
+    `${startMarker}\n${buildConversationSection(payload)}\n${endMarker}`;
+
+  const hasExistingContent = String(existingContent || "").trim().length > 0;
+  const baseContent = hasExistingContent
+    ? String(existingContent).trim()
+    : buildDocumentHeader(payload).trim();
+
+  const sectionPattern = new RegExp(
+    `${escapeRegExp(startMarker)}[\\s\\S]*?${escapeRegExp(endMarker)}`,
+    "m"
+  );
+
+  if (sectionPattern.test(baseContent)) {
+    return `${baseContent.replace(sectionPattern, sectionBlock)}\n`;
+  }
+
+  return `${baseContent}\n\n---\n\n${sectionBlock}\n`;
 }
 
 function buildSyncPayloadFromMessage(message, windowId) {
@@ -106,7 +218,10 @@ function buildSyncPayloadFromMessage(message, windowId) {
     return {
       content: String(message.content || ""),
       mimeType: "text/markdown",
-      windowId: windowId ?? "default"
+      windowId: windowId ?? "default",
+      conversationId: String(message.conversationId || ""),
+      conversationTitle: String(message.conversationTitle || ""),
+      pageUrl: String(message.pageUrl || "")
     };
   }
 
@@ -332,6 +447,45 @@ async function createFile(token, folderId, fileName, content) {
   return data.id;
 }
 
+async function findFileIdByName(token, folderId, fileName) {
+  const searchUrl =
+    "https://www.googleapis.com/drive/v3/files?" +
+    new URLSearchParams({
+      q: [
+        `name='${fileName.replace(/'/g, "\\'")}'`,
+        `'${folderId}' in parents`,
+        "trashed=false"
+      ].join(" and "),
+      fields: "files(id,name)",
+      spaces: "drive"
+    });
+
+  const res = await fetch(searchUrl, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw buildDriveError("Find file by name failed", res, text);
+  }
+
+  const data = JSON.parse(text);
+  return data.files?.[0]?.id || null;
+}
+
+async function readFileContent(token, fileId) {
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+    {
+      headers: { Authorization: `Bearer ${token}` }
+    }
+  );
+  const text = await res.text();
+  if (!res.ok) {
+    throw buildDriveError("Read file failed", res, text);
+  }
+  return text;
+}
+
 async function updateFile(token, fileId, content) {
   const res = await fetch(
     `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
@@ -351,11 +505,11 @@ async function updateFile(token, fileId, content) {
   }
 }
 
-async function syncToDrive(windowId, markdownContent) {
+async function syncToDrive(payload) {
   let token = await getValidToken();
   let folderId = await getOrCreateFolder(token);
-  const fileName = `chatgpt-window-${windowId}.md`;
-  const fileMapKey = getFileMapKey(windowId);
+  const fileName = buildFileName(payload);
+  const fileMapKey = getFileMapKey(buildFileBucketKey(payload));
   const cached = await chrome.storage.local.get(fileMapKey);
   let fileId = cached[fileMapKey] || null;
 
@@ -365,12 +519,23 @@ async function syncToDrive(windowId, markdownContent) {
   }
 
   try {
+    if (!fileId) {
+      fileId = await findFileIdByName(token, folderId, fileName);
+      if (fileId) {
+        await chrome.storage.local.set({ [fileMapKey]: fileId });
+      }
+    }
+
+    let mergedContent = mergeConversationContent("", payload);
+
     if (fileId) {
-      await updateFile(token, fileId, markdownContent);
+      const existingContent = await readFileContent(token, fileId);
+      mergedContent = mergeConversationContent(existingContent, payload);
+      await updateFile(token, fileId, mergedContent);
       return { fileId, fileName };
     }
 
-    fileId = await createFile(token, folderId, fileName, markdownContent);
+    fileId = await createFile(token, folderId, fileName, mergedContent);
     await chrome.storage.local.set({ [fileMapKey]: fileId });
     return { fileId, fileName };
   } catch (error) {
@@ -382,12 +547,23 @@ async function syncToDrive(windowId, markdownContent) {
     token = await getAuthToken(true);
     folderId = await getOrCreateFolder(token);
 
+    if (!fileId) {
+      fileId = await findFileIdByName(token, folderId, fileName);
+      if (fileId) {
+        await chrome.storage.local.set({ [fileMapKey]: fileId });
+      }
+    }
+
+    let mergedContent = mergeConversationContent("", payload);
+
     if (fileId) {
-      await updateFile(token, fileId, markdownContent);
+      const existingContent = await readFileContent(token, fileId);
+      mergedContent = mergeConversationContent(existingContent, payload);
+      await updateFile(token, fileId, mergedContent);
       return { fileId, fileName };
     }
 
-    fileId = await createFile(token, folderId, fileName, markdownContent);
+    fileId = await createFile(token, folderId, fileName, mergedContent);
     await chrome.storage.local.set({ [fileMapKey]: fileId });
     return { fileId, fileName };
   }
@@ -398,7 +574,7 @@ function buildFailedItem(payload, error, retry) {
     id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
     payload: {
       ...payload,
-      filename: `chatgpt-window-${payload.windowId ?? "default"}.md`
+      filename: buildFileName(payload)
     },
     error: error.message,
     retry
@@ -433,7 +609,7 @@ async function processQueue() {
   const item = uploadQueue.shift();
 
   try {
-    await syncToDrive(item.payload.windowId ?? "default", item.payload.content);
+    await syncToDrive(item.payload);
     await markItemFinished();
   } catch (error) {
     item.retry = (item.retry || 0) + 1;

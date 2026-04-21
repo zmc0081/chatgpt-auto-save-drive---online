@@ -106,11 +106,29 @@ function extractConversation() {
   return appendedCount > 0 ? markdown : null;
 }
 
+function extractConversationId() {
+  const match = location.pathname.match(/\/c\/([A-Za-z0-9-]+)/);
+  return match ? match[1] : "";
+}
+
+function extractConversationTitle() {
+  const docTitle = normalizeText(document.title.replace(/\s*-\s*ChatGPT\s*$/i, ""));
+  if (docTitle && !/^chatgpt$/i.test(docTitle)) {
+    return docTitle;
+  }
+
+  const heading = document.querySelector("main h1, main h2");
+  return normalizeText(heading?.textContent || "") || "ChatGPT Conversation";
+}
+
 function sendConversationSync(markdownContent) {
   chrome.runtime.sendMessage(
     {
       type: "SYNC_CONVERSATION",
-      content: markdownContent
+      content: markdownContent,
+      conversationId: extractConversationId(),
+      conversationTitle: extractConversationTitle(),
+      pageUrl: location.href
     },
     () => {
       if (chrome.runtime.lastError) {
