@@ -42,6 +42,28 @@ function setStatusDot(id, colorClass) {
   document.getElementById(id).className = `status-dot ${colorClass}`.trim();
 }
 
+function renderFailedTasks(list, tasks) {
+  list.replaceChildren();
+
+  tasks.forEach((task, index) => {
+    const item = document.createElement("div");
+    item.className = "failed-item";
+
+    const text = document.createElement("div");
+    text.textContent = `Window ${task.windowId} - ${task.error}`;
+    item.appendChild(text);
+
+    const button = document.createElement("button");
+    button.className = "retry-btn";
+    button.type = "button";
+    button.dataset.index = String(index);
+    button.textContent = "Retry";
+    item.appendChild(button);
+
+    list.appendChild(item);
+  });
+}
+
 function showAuthError(message) {
   const authError = document.getElementById("authError");
   if (!message) {
@@ -85,8 +107,20 @@ async function updateAuthStatus() {
 async function handleAuth() {
   try {
     showAuthError("");
-    await getAuthToken(true);
+    const result = await sendMessage({ type: "AUTHORIZE_DRIVE" });
+    if (!result.ok) {
+      throw new Error(result.error || "Authorization failed");
+    }
+
     await updateAuthStatus();
+
+    if (result.folderId) {
+      setDisplay("folderInfo", true);
+      const link = document.getElementById("folderLink");
+      link.href = `https://drive.google.com/drive/folders/${result.folderId}`;
+      link.textContent = "ChatGPT-AutoSave";
+    }
+
     await updateSyncStatus();
   } catch (error) {
     showAuthError(`Authorization failed: ${error.message}`);
@@ -103,12 +137,6 @@ async function handleRevoke() {
     });
 
     if (token) {
-      try {
-        await fetch(`https://accounts.google.com/o/oauth2/revoke?token=${encodeURIComponent(token)}`);
-      } catch {
-        // Ignore revoke endpoint failures and still clear local state.
-      }
-
       await removeCachedAuthToken(token);
     }
 
@@ -155,21 +183,12 @@ async function updateFailedTasks() {
 
   if (!response.ok || !response.tasks || response.tasks.length === 0) {
     section.style.display = "none";
-    list.innerHTML = "";
+    list.replaceChildren();
     return;
   }
 
   section.style.display = "block";
-  list.innerHTML = response.tasks
-    .map(
-      (task, index) => `
-        <div class="failed-item">
-          Window ${task.windowId} - ${task.error}
-          <button class="retry-btn" data-index="${index}" type="button">Retry</button>
-        </div>
-      `
-    )
-    .join("");
+  renderFailedTasks(list, response.tasks);
 
   list.querySelectorAll(".retry-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {

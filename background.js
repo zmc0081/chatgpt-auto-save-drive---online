@@ -288,6 +288,21 @@ async function getValidToken() {
   return token;
 }
 
+async function authorizeDriveAccess() {
+  let token = await getAuthToken(true);
+  const tokenInfoResponse = await fetch(
+    `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${encodeURIComponent(token)}`
+  );
+
+  if (!tokenInfoResponse.ok) {
+    await removeCachedToken(token);
+    token = await getAuthToken(true);
+  }
+
+  const folderId = await getOrCreateFolder(token);
+  return { token, folderId };
+}
+
 function buildDriveError(action, response, responseText) {
   const error = new Error(`${action}: ${response.status} ${responseText}`);
   error.status = response.status;
@@ -506,7 +521,21 @@ async function updateFile(token, fileId, content) {
 }
 
 async function syncToDrive(payload) {
-  let token = await getValidToken();
+  let token = "";
+
+  try {
+    token = await getAuthToken(false);
+  } catch (error) {
+    if (isAuthError(error)) {
+      throw new Error("Google Drive authorization is required. Open the extension popup and click Authorize Google Drive.");
+    }
+    throw error;
+  }
+
+  if (!token) {
+    throw new Error("Google Drive authorization is required. Open the extension popup and click Authorize Google Drive.");
+  }
+
   let folderId = await getOrCreateFolder(token);
   const fileName = buildFileName(payload);
   const fileMapKey = getFileMapKey(buildFileBucketKey(payload));
@@ -544,7 +573,20 @@ async function syncToDrive(payload) {
     }
 
     await removeCachedToken(token);
-    token = await getAuthToken(true);
+
+    try {
+      token = await getAuthToken(false);
+    } catch (authError) {
+      if (isAuthError(authError)) {
+        throw new Error("Google Drive authorization expired. Open the extension popup and click Authorize Google Drive again.");
+      }
+      throw authError;
+    }
+
+    if (!token) {
+      throw new Error("Google Drive authorization expired. Open the extension popup and click Authorize Google Drive again.");
+    }
+
     folderId = await getOrCreateFolder(token);
 
     if (!fileId) {
@@ -767,6 +809,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "GET_STATUS") {
     getStatusSummary()
       .then((summary) => sendResponse({ ok: true, ...summary }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (message.type === "AUTHORIZE_DRIVE") {
+    authorizeDriveAccess()
+      .then(({ folderId }) => sendResponse({ ok: true, folderId }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
