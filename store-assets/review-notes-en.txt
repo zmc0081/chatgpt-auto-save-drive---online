@@ -1,0 +1,16 @@
+Review steps for Chrome Web Store:
+
+1. Install the extension.
+2. Click the extension icon to open the popup.
+3. Click "Authorize Google Drive".
+4. Approve the Google OAuth prompt for the signed-in Chrome profile.
+5. After approval, the popup shows:
+   - Google Drive Authorization: Authorized
+   - Saving to: ChatGPT-AutoSave
+6. Open https://chatgpt.com/ in the same browser profile, send a message in any conversation, and wait a few seconds.
+7. A Markdown file is created or updated in the "ChatGPT-AutoSave" folder in the reviewer's own Google Drive.
+
+Notes:
+- The extension does not use any developer-controlled server.
+- All uploads go directly from the browser to the reviewer's own Google Drive account.
+- If Drive access has not been granted yet, syncing stays paused until the reviewer clicks "Authorize Google Drive" in the popup.

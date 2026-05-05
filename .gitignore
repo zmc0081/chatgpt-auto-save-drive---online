@@ -1,0 +1,10 @@
+key.pem
+*.pem
+*.zip
+.Rhistory
+.env
+config.local.js
+node_modules/
+.DS_Store
+.webstore-package/
+_zip_check/
