@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Privacy Policy - ChatGPT Auto Save to Google Drive</title>
+  <title>Privacy Policy - AI Chats Auto Save</title>
   <style>
     :root {
       color-scheme: light;
@@ -28,7 +28,7 @@
     }
 
     .wrap {
-      max-width: 880px;
+      max-width: 920px;
       margin: 0 auto;
       padding: 48px 20px 72px;
     }
@@ -47,10 +47,14 @@
       line-height: 1.2;
     }
 
-    .intro {
-      margin: 0 0 28px;
+    .intro,
+    .footer {
       color: var(--muted);
       font-size: 1rem;
+    }
+
+    .intro {
+      margin: 0 0 28px;
     }
 
     h2 {
@@ -76,6 +80,14 @@
       color: #123a73;
     }
 
+    pre {
+      overflow-x: auto;
+      background: #eef3fb;
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #123a73;
+    }
+
     a {
       color: var(--accent);
       text-decoration: none;
@@ -87,8 +99,6 @@
 
     .footer {
       margin-top: 28px;
-      color: var(--muted);
-      font-size: 0.95rem;
     }
 
     @media (max-width: 640px) {
@@ -110,47 +120,85 @@
 <body>
   <main class="wrap">
     <article class="card">
-      <h1>Privacy Policy - ChatGPT Auto Save to Google Drive</h1>
+      <h1>Privacy Policy - AI Chats Auto Save</h1>
       <p class="intro">
-        This page explains how ChatGPT Auto Save to Google Drive handles user data.
+        Last updated: May 5, 2026. AI Chats Auto Save saves supported AI chat conversations to the user's own Google Drive after the user explicitly connects Google Drive from the extension popup.
       </p>
 
-      <h2>Data Collection</h2>
+      <h2>Data We Read</h2>
       <p>
-        This extension reads the content of your ChatGPT conversations directly from the browser page DOM.
-        The content is sent exclusively to your own Google Drive account.
+        The extension reads visible conversation content directly from supported AI chat pages in your browser.
+        The current version supports ChatGPT, Claude, DeepSeek, Gemini, Grok, Llama, Mistral, Qwen, MiniMax, Olmo, and Kimi pages listed in the extension manifest.
       </p>
-
-      <h2>Data Storage</h2>
+      <p>When a conversation changes, the extension may process:</p>
       <ul>
-        <li>NO conversation data is stored on any external server.</li>
-        <li>All data flows directly from your browser to your personal Google Drive.</li>
-        <li>OAuth tokens are managed by Chrome's built-in identity API and stored locally.</li>
+        <li>Conversation text visible on the page</li>
+        <li>The AI chat platform name</li>
+        <li>The current page URL</li>
+        <li>The conversation title when available</li>
+        <li>The update time and message count used in the generated Markdown file</li>
       </ul>
+
+      <h2>How We Use Data</h2>
+      <p>
+        Conversation data is used only to create or update Markdown files in your own Google Drive.
+        The extension creates or reuses a root folder named <code>AI Chats Auto Save</code> and platform subfolders such as <code>ChatGPT</code>, <code>Claude</code>, or <code>Gemini</code>.
+      </p>
+      <p>The extension does not send conversation content to a developer-controlled server.</p>
+
+      <h2>Local Browser Storage</h2>
+      <p>
+        The extension uses Chrome local storage to keep sync state and make uploads reliable. Locally stored data may include:
+      </p>
+      <ul>
+        <li>Google Drive folder IDs and file IDs created or reused by the extension</li>
+        <li>Sync status, pending upload counts, and error notices</li>
+        <li>Failed upload tasks for manual retry</li>
+        <li>For failed uploads, the pending Markdown content, raw conversation snapshot, source URL, and related metadata may remain locally in the browser until the retry succeeds or the extension data is cleared</li>
+      </ul>
+
+      <h2>Google Drive and OAuth</h2>
+      <p>
+        The extension uses Chrome's <code>identity</code> API for Google OAuth. OAuth tokens are managed by Chrome and are not manually stored by the extension.
+      </p>
+      <p>The extension requests the limited Google Drive scope:</p>
+      <pre><code>https://www.googleapis.com/auth/drive.file</code></pre>
+      <p>
+        This scope is used to create and update files and folders that the extension creates or that the user authorizes the extension to access.
+        Disconnecting Google Drive from the popup clears cached Chrome Identity tokens used by the extension.
+      </p>
 
       <h2>Data Sharing</h2>
       <ul>
-        <li>We do NOT collect, store, or share any user data.</li>
-        <li>We do NOT have access to your Google Drive files.</li>
-        <li>We do NOT track usage analytics.</li>
+        <li>We do not sell user data.</li>
+        <li>We do not use user data for advertising.</li>
+        <li>We do not use conversation data for analytics, profiling, or AI model training.</li>
+        <li>We do not operate a server that receives or stores your conversation data.</li>
+        <li>Conversation data is sent to Google Drive only when needed to provide the save-to-Drive feature you request.</li>
       </ul>
 
       <h2>Permissions Explained</h2>
       <ul>
-        <li><code>identity</code>: Required for Google OAuth authorization.</li>
-        <li><code>storage</code>: Required for storing sync state locally in your browser.</li>
-        <li><code>tabs</code>: Required for detecting ChatGPT tabs.</li>
-        <li><code>host_permissions</code> on <code>chatgpt.com</code> and <code>chat.openai.com</code>: Required for reading conversation content.</li>
-        <li><code>host_permissions</code> on <code>googleapis.com</code>: Required for Google Drive API calls.</li>
+        <li><code>identity</code>: Used to connect your Google account through Chrome OAuth.</li>
+        <li><code>storage</code>: Used to store local sync state, Drive file mappings, folder cache, and failed retry tasks.</li>
+        <li>Host permissions for supported AI chat sites: Used to read visible conversation content from those pages.</li>
+        <li>Host permission for <code>https://www.googleapis.com/*</code>: Used to call the Google Drive API for folder lookup, folder creation, file creation, and file updates.</li>
       </ul>
+
+      <h2>User Control</h2>
+      <p>
+        You can stop syncing by disconnecting Google Drive from the extension popup, disabling the extension, uninstalling the extension, or clearing the extension's site and storage data in Chrome.
+      </p>
+      <p>You can delete exported Markdown files directly from your Google Drive at any time.</p>
 
       <h2>Contact</h2>
       <p>
+        If you have questions about this privacy policy, contact:
         <a href="mailto:zm@noyan.cn">zm@noyan.cn</a>
       </p>
 
       <p class="footer">
-        Last updated: April 19, 2026
+        This policy is published for the Chrome extension AI Chats Auto Save.
       </p>
     </article>
   </main>
