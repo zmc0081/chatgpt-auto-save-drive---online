@@ -1,0 +1,64 @@
+{
+  "manifest_version": 3,
+  "name": "AI Chats Auto Save",
+  "version": "1.2.0",
+  "description": "After you connect Google Drive, automatically save supported AI chat conversations as Markdown files.",
+  "permissions": [
+    "storage",
+    "identity"
+  ],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*",
+    "https://chat.deepseek.com/*",
+    "https://gemini.google.com/*",
+    "https://grok.x.com/*",
+    "https://llama.meta.com/*",
+    "https://chat.mistral.ai/*",
+    "https://qwenlm.aliyun.com/*",
+    "https://chat.minimax.ai/*",
+    "https://olmo.allenai.org/*",
+    "https://kimi.moonshot.cn/*",
+    "https://www.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://chat.deepseek.com/*",
+        "https://gemini.google.com/*",
+        "https://grok.x.com/*",
+        "https://llama.meta.com/*",
+        "https://chat.mistral.ai/*",
+        "https://qwenlm.aliyun.com/*",
+        "https://chat.minimax.ai/*",
+        "https://olmo.allenai.org/*",
+        "https://kimi.moonshot.cn/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icons/icon-aac-minimal-128.png"
+  },
+  "icons": {
+    "16": "icons/icon-aac-minimal-16.png",
+    "32": "icons/icon-aac-minimal-32.png",
+    "48": "icons/icon-aac-minimal-48.png",
+    "128": "icons/icon-aac-minimal-128.png"
+  },
+  "oauth2": {
+    "client_id": "776131550478-l3fehq9jkffh6ecrfba3s3evdtkq86o6.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/drive.file"
+    ]
+  }
+}
