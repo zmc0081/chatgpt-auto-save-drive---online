@@ -1,5 +1,7 @@
 Review steps for Chrome Web Store:
 
+Chrome Web Store item ID: dmfmnjinpphfpodandcboelcglicaomg
+
 1. Install the extension.
 2. Click the extension icon to open the popup.
 3. Click "Connect Google Drive".

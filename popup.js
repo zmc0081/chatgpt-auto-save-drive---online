@@ -143,9 +143,6 @@ async function refreshStatus() {
 
   if (lastErrorNotice) {
     showError(lastErrorNotice);
-    await sendMessage({ type: "CLEAR_UPLOAD_NOTICE" });
-  } else {
-    showError("");
   }
 
   renderFailedList(failedItems);
