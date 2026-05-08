@@ -1,28 +1,29 @@
-ChatGPT Auto Save to Google Drive 会自动检测你在 ChatGPT 中的对话变化，并将最新对话快照同步到你的 Google Drive，保存为 Markdown 文件。
+AI Chats Auto Save 会在你从扩展弹窗连接 Google Drive 后，将支持的 AI 聊天内容保存到你自己的 Google Drive，格式为 Markdown 文件。
 
 核心功能：
-- 自动监听 chatgpt.com 与 chat.openai.com 中的对话变化
-- 每个浏览器窗口对应一个 Markdown 文件，并持续覆盖更新
-- 自动创建或复用专用的 Google Drive 文件夹
-- 使用更安全的 Google Drive 权限范围：drive.file
+- 监听支持的 AI 聊天页面，包括 ChatGPT、Claude、DeepSeek、Gemini、Grok、Llama、Mistral、Qwen、MiniMax、Olmo 和 Kimi
+- 将页面中可见的对话内容转换为 Markdown
+- 创建或复用名为 “AI Chats Auto Save” 的 Google Drive 根文件夹
+- 按平台创建子文件夹，例如 ChatGPT、Claude 或 Gemini
+- 使用有限的 Google Drive 权限范围：drive.file
 - 内置失败重试机制
-- 在 popup 中展示授权状态、同步状态和失败任务
+- 在弹窗中显示 Drive 连接状态、同步状态、失败任务，以及“打开 Google Drive 文件夹”链接
 
 工作方式：
-1. 扩展从 ChatGPT 页面 DOM 中读取当前可见对话内容。
-2. 当检测到对话变化时，自动生成 Markdown 快照。
-3. 快照会直接从浏览器上传到你自己的 Google Drive。
-4. 全流程不依赖任何开发者控制的外部服务器。
+1. 在扩展弹窗中点击 “Connect Google Drive”，并完成 Google OAuth 授权。
+2. 扩展从支持的 AI 聊天页面读取可见对话内容。
+3. 当检测到对话变化时，扩展生成 Markdown 快照。
+4. 快照会直接从浏览器上传到你自己的 Google Drive。
+5. 全流程不使用开发者控制的服务器存储或处理对话内容。
 
 权限说明：
 - identity：用于 Google OAuth 授权
-- storage：用于本地保存同步状态和文件映射缓存
-- tabs：用于识别 ChatGPT 标签页并更新徽标状态
-- chatgpt.com / chat.openai.com 的 host permissions：用于读取对话内容
-- googleapis.com 的 host permissions：用于调用 Google Drive API
+- storage：用于本地保存同步状态、Drive 文件夹缓存、文件映射缓存和失败重试任务
+- 支持的 AI 聊天网站 host permissions：用于读取页面中可见的对话内容
+- googleapis.com host permission：用于调用 Google Drive API
 
 隐私说明：
-- 不会将对话内容发送到开发者服务器
+- 不会将对话内容发送到开发者控制的服务器
 - 不包含统计分析或使用追踪
 - 数据仅保存在你自己的 Google Drive 账户中
 

@@ -1,24 +1,25 @@
-ChatGPT Auto Save to Google Drive automatically detects changes in your ChatGPT conversations and syncs the latest conversation snapshot to your Google Drive as a Markdown file.
+AI Chats Auto Save saves supported AI chat conversations to your own Google Drive as Markdown files after you connect Google Drive from the extension popup.
 
 Key features:
-- Automatically watches ChatGPT tabs on chatgpt.com and chat.openai.com
-- Names files as ChatGPT title plus date, creates a new file for a new title, and merges same-title content into the same daily Markdown file
-- Creates or reuses a dedicated Google Drive folder automatically
-- Uses the safer Google Drive scope: drive.file
+- Watches supported AI chat pages, including ChatGPT, Claude, DeepSeek, Gemini, Grok, Llama, Mistral, Qwen, MiniMax, Olmo, and Kimi
+- Converts visible conversation content into Markdown
+- Creates or reuses a Google Drive root folder named "AI Chats Auto Save"
+- Organizes files by platform subfolder, such as ChatGPT, Claude, or Gemini
+- Uses the limited Google Drive scope: drive.file
 - Includes retry handling for failed uploads
-- Shows authorization, sync state, and failed tasks in the popup
+- Shows Drive connection status, sync state, failed tasks, and an "Open Google Drive folder" link in the popup
 
 How it works:
-1. The extension reads the visible conversation content from the ChatGPT page DOM.
-2. When the conversation changes, it generates a Markdown snapshot.
-3. The snapshot is uploaded directly from your browser to your own Google Drive.
-4. No external server is used for storage or processing.
+1. Click "Connect Google Drive" in the popup and approve Google OAuth.
+2. The extension reads visible conversation content from supported AI chat pages.
+3. When the conversation changes, it generates a Markdown snapshot.
+4. The snapshot is uploaded directly from your browser to your own Google Drive.
+5. No developer-controlled server is used for storage or processing.
 
 Permissions explained:
 - identity: required for Google OAuth authorization
-- storage: required for local sync state and file mapping cache
-- tabs: required to detect ChatGPT tabs and update badge state
-- host permissions on chatgpt.com / chat.openai.com: required to read conversation content
+- storage: required for local sync state, Drive folder cache, file mapping cache, and failed retry tasks
+- host permissions on supported AI chat sites: required to read visible conversation content
 - host permissions on googleapis.com: required to access the Google Drive API
 
 Privacy summary:

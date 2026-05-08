@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Chats Auto Save",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "After you connect Google Drive, automatically save supported AI chat conversations as Markdown files.",
   "permissions": [
     "storage",

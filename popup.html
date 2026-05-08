@@ -83,6 +83,21 @@
       color: #6b7280;
       margin-top: 8px;
     }
+
+    .drive-link {
+      display: none;
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
+    .drive-link a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+
+    .drive-link a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -99,6 +114,7 @@
       <div id="progressHint" style="font-size:12px;color:#6b7280;margin-top:4px;">已检测到 AI 聊天页面</div>
       <div style="font-size:12px;color:#6b7280;margin-top:6px;">AI 聊天内容会自动保存到你的 Google Drive。</div>
       <div class="drive-row">Google Drive：<strong id="driveStatus">未连接</strong></div>
+      <div id="folderRow" class="drive-link"><a id="folderLink" href="#" target="_blank" rel="noopener">打开 Google Drive 文件夹</a></div>
       <button id="connectButton" type="button">连接 Google Drive</button>
     </div>
 

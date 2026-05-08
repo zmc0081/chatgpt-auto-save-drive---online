@@ -4,6 +4,7 @@ const UPLOAD_STATE_KEY = "uploadState";
 const WINDOW_FILE_MAP_KEY = "windowFileMap";
 const ROOT_FOLDER_CACHE_KEY = "rootFolderId";
 const SUBFOLDER_CACHE_KEY = "subfolderCache";
+const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"];
 
 // AI模型配置
 const AI_MODELS = {
@@ -76,6 +77,7 @@ function getDefaultState() {
     isSyncing: false,
     isAvailable: true,
     isConnected: false,
+    rootFolderId: "",
     failedItems: [],
     lastErrorNotice: ""
   };
@@ -96,8 +98,13 @@ async function getState() {
 }
 
 async function hasAIChatTab() {
-  const tabs = await chrome.tabs.query({ url: ALL_URL_PATTERNS });
-  return tabs.length > 0;
+  try {
+    const tabs = await chrome.tabs.query({ url: ALL_URL_PATTERNS });
+    return tabs.length > 0;
+  } catch (error) {
+    console.warn("[background] unable to query AI chat tabs:", error);
+    return false;
+  }
 }
 
 // 获取标签页所属的大模型
@@ -134,7 +141,11 @@ function normalizeModelKey(modelKey, url = "") {
 async function setState(state) {
   const nextState = normalizeState(state);
   await chrome.storage.local.set({ [UPLOAD_STATE_KEY]: nextState });
-  await updateBadge(nextState);
+  try {
+    await updateBadge(nextState);
+  } catch (error) {
+    console.warn("[background] unable to update badge:", error);
+  }
 }
 
 async function setBadgeTextColor(color) {
@@ -204,7 +215,7 @@ function escapeDriveQueryValue(value) {
 
 async function findFolderByName(folderName, parentFolderId) {
   const token = await getAccessToken();
-  const parentClause = parentFolderId ? ` and parents='${escapeDriveQueryValue(parentFolderId)}'` : "";
+  const parentClause = parentFolderId ? ` and '${escapeDriveQueryValue(parentFolderId)}' in parents` : "";
   const query = `name='${escapeDriveQueryValue(folderName)}'${parentClause} and trashed=false and mimeType='application/vnd.google-apps.folder'`;
 
   const response = await fetch(
@@ -327,11 +338,34 @@ function buildAuthRequiredError() {
   return error;
 }
 
+function getAuthTokenFromChrome(interactive) {
+  return new Promise((resolve, reject) => {
+    chrome.identity.getAuthToken(
+      {
+        interactive,
+        scopes: DRIVE_SCOPES
+      },
+      (result) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+
+        const token = typeof result === "string" ? result : result?.token;
+        if (!token) {
+          reject(new Error("未获取到 Google Drive access token"));
+          return;
+        }
+
+        resolve(token);
+      }
+    );
+  });
+}
+
 async function getAccessToken({ interactive = false } = {}) {
   try {
-    const cached = await chrome.identity.getAuthToken({ interactive: false });
-    if (typeof cached === "string" && cached) return cached;
-    if (cached?.token) return cached.token;
+    return await getAuthTokenFromChrome(false);
   } catch (error) {
     if (!interactive) {
       throw buildAuthRequiredError();
@@ -342,10 +376,7 @@ async function getAccessToken({ interactive = false } = {}) {
     throw buildAuthRequiredError();
   }
 
-  const result = await chrome.identity.getAuthToken({ interactive: true });
-  if (typeof result === "string" && result) return result;
-  if (result?.token) return result.token;
-  throw new Error("未获取到 Google Drive access token");
+  return await getAuthTokenFromChrome(true);
 }
 
 function buildDriveError(action, response, responseText) {
@@ -617,13 +648,16 @@ async function enqueueUpload(payload) {
 
 async function connectGoogleDrive() {
   await getAccessToken({ interactive: true });
-  await getOrCreateRootFolder();
+  const rootFolderId = await getOrCreateRootFolder();
 
   const state = await getState();
   state.isConnected = true;
   state.isAvailable = true;
+  state.rootFolderId = rootFolderId;
   state.lastErrorNotice = "";
   await setState(state);
+
+  return { rootFolderId };
 }
 
 async function disconnectGoogleDrive() {
@@ -637,6 +671,7 @@ async function disconnectGoogleDrive() {
   state.isAvailable = false;
   state.isSyncing = false;
   state.pendingCount = 0;
+  state.rootFolderId = "";
   state.lastErrorNotice = "";
   await setState(state);
 }
@@ -650,9 +685,11 @@ async function initializeState() {
     await getAccessToken();
     state.isConnected = true;
     state.isAvailable = true;
+    state.rootFolderId = await getRootFolderCache();
   } catch (error) {
     state.isConnected = false;
     state.isAvailable = false;
+    state.rootFolderId = "";
   }
 
   await setState(state);
@@ -688,8 +725,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === "CONNECT_GOOGLE_DRIVE") {
     connectGoogleDrive()
-      .then(() => sendResponse({ ok: true }))
-      .catch((error) => sendResponse({ ok: false, error: error.message }));
+      .then(({ rootFolderId }) => sendResponse({ ok: true, rootFolderId }))
+      .catch(async (error) => {
+        const state = await getState();
+        state.isConnected = false;
+        state.isAvailable = false;
+        state.lastErrorNotice = error.message || "Google Drive 连接失败";
+        await setState(state);
+        sendResponse({ ok: false, error: state.lastErrorNotice });
+      });
     return true;
   }
 

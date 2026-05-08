@@ -12,7 +12,7 @@ Chrome extension that saves supported AI chat conversations to the user's own Go
 ## Current Version
 
 - Extension name: `AI Chats Auto Save`
-- Version: `1.2.0`
+- Version: `1.2.1`
 - Manifest description: `After you connect Google Drive, automatically save supported AI chat conversations as Markdown files.`
 
 ## Supported Sites
@@ -86,6 +86,7 @@ chatgpt-auto-save-drive---online/
 - `Connect Google Drive`: starts interactive Google OAuth and verifies the Drive folder.
 - `Disconnect Google Drive`: clears cached Chrome Identity tokens and stops local syncing.
 - Drive status: shows whether Google Drive is connected.
+- Open Google Drive folder: appears after connection and links to the `AI Chats Auto Save` folder.
 - Current status: shows `ON`, `ING`, or `OFF`.
 - Failed task list: shows failed uploads and provides a manual retry button.
 

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ChatGPT Auto Save to Google Drive</title>
-  <meta name="description" content="Automatically sync your ChatGPT conversations to your Google Drive as Markdown files.">
+  <title>AI Chats Auto Save</title>
+  <meta name="description" content="Save supported AI chat conversations to your own Google Drive as Markdown files after connecting Google Drive.">
   <style>
     :root {
       color-scheme: light;
@@ -269,11 +269,11 @@
   <main class="wrap">
     <section class="hero">
       <div class="intro">
-        <div class="eyebrow">Chrome Extension for ChatGPT + Google Drive</div>
-        <h1>ChatGPT Auto Save to Google Drive</h1>
+        <div class="eyebrow">Chrome Extension for AI Chats + Google Drive</div>
+        <h1>AI Chats Auto Save</h1>
         <p class="lead">
-          Automatically detect changes in your ChatGPT conversations and save the latest snapshot
-          to your own Google Drive as a Markdown file. No developer-controlled server is used.
+          Save supported AI chat conversations to your own Google Drive as Markdown files after
+          connecting Google Drive from the extension popup. No developer-controlled server is used.
         </p>
 
         <div class="actions">
@@ -282,8 +282,8 @@
         </div>
 
         <ul class="feature-list">
-          <li>Reads visible ChatGPT conversation content directly from the page DOM.</li>
-          <li>Names files as ChatGPT title plus date, creates a new file for a new title, and merges same-title content into the same daily Markdown file.</li>
+          <li>Reads visible conversation content directly from supported AI chat pages.</li>
+          <li>Creates a Drive folder named <code>AI Chats Auto Save</code> and platform subfolders.</li>
           <li>Uses Google OAuth and the safer <code>drive.file</code> scope.</li>
           <li>Stores data only in the user's own Google Drive account.</li>
         </ul>
@@ -294,8 +294,8 @@
           <h2>Example Extension Status</h2>
 
           <div class="status-row">
-            <span class="status-label">Authorization</span>
-            <span class="badge">Authorized</span>
+            <span class="status-label">Google Drive</span>
+            <span class="badge">Connected</span>
           </div>
 
           <div class="status-row">
@@ -305,7 +305,7 @@
 
           <div class="status-row">
             <span class="status-label">Target Folder</span>
-            <span>ChatGPT-AutoSave</span>
+            <span>AI Chats Auto Save</span>
           </div>
 
           <div class="status-row">
@@ -320,7 +320,7 @@
       <article class="info-card">
         <h3>Single Purpose</h3>
         <p>
-          The extension exists for one purpose only: saving ChatGPT conversation content to the
+          The extension exists for one purpose only: saving supported AI chat content to the
           user's own Google Drive as Markdown files.
         </p>
       </article>
@@ -328,8 +328,8 @@
       <article class="info-card">
         <h3>Permissions</h3>
         <p>
-          Uses <code>identity</code>, <code>storage</code>, <code>tabs</code>, and required host permissions for
-          ChatGPT pages and Google Drive API requests.
+          Uses <code>identity</code>, <code>storage</code>, and required host permissions for supported
+          AI chat pages and Google Drive API requests.
         </p>
       </article>
 

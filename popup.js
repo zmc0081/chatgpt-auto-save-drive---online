@@ -5,6 +5,10 @@ const statusBadgeEl = document.getElementById("statusBadge");
 const progressHintEl = document.getElementById("progressHint");
 const driveStatusEl = document.getElementById("driveStatus");
 const connectButtonEl = document.getElementById("connectButton");
+const folderRowEl = document.getElementById("folderRow");
+const folderLinkEl = document.getElementById("folderLink");
+
+let latestIsConnected = false;
 
 function sendMessage(message) {
   return new Promise((resolve) => {
@@ -30,6 +34,28 @@ function setBadgeAppearance(mode, text) {
 
   statusBadgeEl.style.background = "#16A34A";
   statusBadgeEl.style.color = "#FFFFFF";
+}
+
+function showError(message) {
+  if (!message) {
+    errorNoticeEl.style.display = "none";
+    errorNoticeEl.textContent = "";
+    return;
+  }
+
+  errorNoticeEl.style.display = "block";
+  errorNoticeEl.textContent = message;
+}
+
+function renderDriveFolderLink(rootFolderId) {
+  if (!rootFolderId) {
+    folderRowEl.style.display = "none";
+    folderLinkEl.removeAttribute("href");
+    return;
+  }
+
+  folderLinkEl.href = `https://drive.google.com/drive/folders/${encodeURIComponent(rootFolderId)}`;
+  folderRowEl.style.display = "block";
 }
 
 function renderFailedList(items) {
@@ -84,11 +110,13 @@ async function refreshStatus() {
     return;
   }
 
-  const { isSyncing, isAvailable, isConnected, failedItems, lastErrorNotice, hasAIChatTab } = result.state;
+  const { isSyncing, isAvailable, isConnected, rootFolderId, failedItems, lastErrorNotice, hasAIChatTab } = result.state;
 
+  latestIsConnected = Boolean(isConnected);
   driveStatusEl.textContent = isConnected ? "已连接" : "未连接";
   connectButtonEl.textContent = isConnected ? "断开 Google Drive" : "连接 Google Drive";
   connectButtonEl.classList.toggle("secondary", isConnected);
+  renderDriveFolderLink(isConnected ? rootFolderId : "");
 
   if (!hasAIChatTab) {
     statusBadgeEl.textContent = "";
@@ -114,11 +142,10 @@ async function refreshStatus() {
   }
 
   if (lastErrorNotice) {
-    errorNoticeEl.style.display = "block";
-    errorNoticeEl.textContent = lastErrorNotice;
+    showError(lastErrorNotice);
     await sendMessage({ type: "CLEAR_UPLOAD_NOTICE" });
   } else {
-    errorNoticeEl.style.display = "none";
+    showError("");
   }
 
   renderFailedList(failedItems);
@@ -126,7 +153,8 @@ async function refreshStatus() {
 
 connectButtonEl.addEventListener("click", async () => {
   connectButtonEl.disabled = true;
-  const isConnected = driveStatusEl.textContent === "已连接";
+  showError("");
+  const isConnected = latestIsConnected;
   connectButtonEl.textContent = isConnected ? "断开中..." : "连接中...";
 
   const result = await sendMessage({
@@ -134,8 +162,17 @@ connectButtonEl.addEventListener("click", async () => {
   });
 
   if (!result.ok) {
-    errorNoticeEl.style.display = "block";
-    errorNoticeEl.textContent = result.error || "Google Drive 操作失败";
+    showError(result.error || "Google Drive 操作失败");
+    connectButtonEl.disabled = false;
+    connectButtonEl.textContent = isConnected ? "断开 Google Drive" : "连接 Google Drive";
+    return;
+  }
+
+  if (result.rootFolderId) {
+    latestIsConnected = true;
+    driveStatusEl.textContent = "已连接";
+    renderDriveFolderLink(result.rootFolderId);
+    progressHintEl.textContent = "Google Drive 已连接";
   }
 
   connectButtonEl.disabled = false;
