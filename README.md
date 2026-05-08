@@ -4,10 +4,10 @@ Chrome extension that saves supported AI chat conversations to the user's own Go
 
 ## Links
 
-- GitHub Repository: `https://github.com/zmc0081/chatgpt-auto-save-drive---online`
-- GitHub Pages Home: `https://zmc0081.github.io/chatgpt-auto-save-drive---online/`
-- Privacy Policy: `https://zmc0081.github.io/chatgpt-auto-save-drive---online/privacy-policy.html`
-- Support: `https://github.com/zmc0081/chatgpt-auto-save-drive---online/issues`
+- GitHub Repository: `https://github.com/zmc0081/AI-Chats-Auto-Save`
+- GitHub Pages Home: `https://zmc0081.github.io/AI-Chats-Auto-Save/`
+- Privacy Policy: `https://zmc0081.github.io/AI-Chats-Auto-Save/privacy-policy.html`
+- Support: `https://github.com/zmc0081/AI-Chats-Auto-Save/issues`
 
 ## Current Version
 
@@ -56,7 +56,7 @@ The current content script runs on these chat products:
 ## Project Structure
 
 ```text
-chatgpt-auto-save-drive---online/
+AI-Chats-Auto-Save/
 |- manifest.json
 |- background.js
 |- content.js
@@ -186,7 +186,7 @@ Generated review ZIP files are ignored by Git through `.gitignore` and should be
 
 Public privacy policy page:
 
-`https://zmc0081.github.io/chatgpt-auto-save-drive---online/privacy-policy.html`
+`https://zmc0081.github.io/AI-Chats-Auto-Save/privacy-policy.html`
 
 ## Troubleshooting
 
