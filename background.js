@@ -6,7 +6,7 @@ const ROOT_FOLDER_CACHE_KEY = "rootFolderId";
 const SUBFOLDER_CACHE_KEY = "subfolderCache";
 const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"];
 
-// AI模型配置
+// AI platform configuration.
 const AI_MODELS = {
   chatgpt: {
     name: "ChatGPT",
@@ -65,7 +65,7 @@ const AI_MODELS = {
   }
 };
 
-// 支持所有模型的URL patterns
+// URL patterns for all supported AI platforms.
 const ALL_URL_PATTERNS = Object.values(AI_MODELS).flatMap(m => m.urlPatterns);
 
 let uploadQueue = [];
@@ -107,7 +107,7 @@ async function hasAIChatTab() {
   }
 }
 
-// 获取标签页所属的大模型
+// Detect the AI platform for a tab.
 async function getModelFromTab(tab) {
   const url = tab.url || "";
   for (const [modelKey, modelConfig] of Object.entries(AI_MODELS)) {
@@ -119,7 +119,7 @@ async function getModelFromTab(tab) {
   return null;
 }
 
-// 根据URL获取大模型
+// Detect the AI platform from a URL.
 function getModelFromUrl(url = "") {
   for (const [modelKey, modelConfig] of Object.entries(AI_MODELS)) {
     const matches = modelConfig.urlPatterns.map(p => p.replace("/*", ""));
@@ -230,7 +230,7 @@ async function findFolderByName(folderName, parentFolderId) {
 
   const text = await response.text();
   if (!response.ok) {
-    throw buildDriveError("查询文件夹失败", response, text);
+    throw buildDriveError("Search Drive folder failed", response, text);
   }
 
   const data = JSON.parse(text);
@@ -262,7 +262,7 @@ async function createDriveFolder(folderName, parentFolderId) {
 
   const text = await response.text();
   if (!response.ok) {
-    throw buildDriveError("创建文件夹失败", response, text);
+    throw buildDriveError("Create Drive folder failed", response, text);
   }
 
   return JSON.parse(text);
@@ -291,10 +291,10 @@ async function getOrCreateRootFolder() {
   return folderId;
 }
 
-// 获取或创建子文件夹
+// Get or create the platform subfolder.
 async function getOrCreateSubfolder(modelKey) {
   const folderName = AI_MODELS[modelKey]?.folderName;
-  if (!folderName) throw new Error(`未知的模型: ${modelKey}`);
+  if (!folderName) throw new Error(`Unknown AI chat platform: ${modelKey}`);
 
   const rootFolderId = await getOrCreateRootFolder();
   const cache = await getSubfolderCache();
@@ -333,7 +333,7 @@ async function setWindowFileMap(windowFileMap) {
 }
 
 function buildAuthRequiredError() {
-  const error = new Error("请先在扩展弹窗中连接 Google Drive");
+  const error = new Error("Open the extension popup and click Connect Google Drive.");
   error.requiresAuth = true;
   return error;
 }
@@ -353,7 +353,7 @@ function getAuthTokenFromChrome(interactive) {
 
         const token = typeof result === "string" ? result : result?.token;
         if (!token) {
-          reject(new Error("未获取到 Google Drive access token"));
+          reject(new Error("No Google Drive access token was returned."));
           return;
         }
 
@@ -438,7 +438,7 @@ async function fetchDriveFileMetadata(fileId) {
 
   const text = await response.text();
   if (!response.ok) {
-    throw buildDriveError("获取文件状态失败", response, text);
+    throw buildDriveError("Get Drive file metadata failed", response, text);
   }
 
   return JSON.parse(text);
@@ -469,7 +469,7 @@ async function createTextFileInDrive({ filename, content, mimeType = "text/markd
 
   const text = await response.text();
   if (!response.ok) {
-    throw buildDriveError("上传失败", response, text);
+    throw buildDriveError("Upload file failed", response, text);
   }
 
   return JSON.parse(text);
@@ -494,7 +494,7 @@ async function updateTextFileInDrive(fileId, { filename, content, mimeType = "te
 
   const text = await response.text();
   if (!response.ok) {
-    throw buildDriveError("更新失败", response, text);
+    throw buildDriveError("Update file failed", response, text);
   }
 
   return JSON.parse(text);
@@ -531,10 +531,10 @@ async function uploadConversationFile(payload) {
   const windowFileMapKey = `${modelKey}_${windowId}`;
   const filename = buildWindowFileName(windowId, modelKey);
   
-  // 获取或创建子文件夹
+  // Get or create the platform subfolder.
   const subfolderIdPromise = getOrCreateSubfolder(modelKey);
   const subfolderIdOrNull = await subfolderIdPromise.catch(error => {
-    console.error("获取子文件夹失败:", error);
+    console.error("Failed to get or create platform folder:", error);
     throw error;
   });
   
@@ -590,7 +590,7 @@ async function processQueue() {
       uploadQueue.push(item);
     } else {
       const state = await getState();
-      state.lastErrorNotice = error.requiresAuth ? error.message : "文件上传失败";
+      state.lastErrorNotice = error.requiresAuth ? error.message : "File upload failed";
       state.isAvailable = false;
       if (error.requiresAuth) {
         state.isConnected = false;
@@ -632,7 +632,7 @@ async function enqueueUpload(payload) {
   if (!state.isConnected) {
     state.isAvailable = false;
     state.isSyncing = false;
-    state.lastErrorNotice = "请先在扩展弹窗中连接 Google Drive";
+    state.lastErrorNotice = "Open the extension popup and click Connect Google Drive.";
     await setState(state);
     return;
   }
@@ -730,7 +730,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const state = await getState();
         state.isConnected = false;
         state.isAvailable = false;
-        state.lastErrorNotice = error.message || "Google Drive 连接失败";
+        state.lastErrorNotice = error.message || "Google Drive connection failed";
         await setState(state);
         sendResponse({ ok: false, error: state.lastErrorNotice });
       });
@@ -781,12 +781,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .then(async (state) => {
         const index = state.failedItems.findIndex((item) => item.id === message.id);
         if (index < 0) {
-          sendResponse({ ok: false, error: "未找到失败任务" });
+          sendResponse({ ok: false, error: "Failed upload task not found" });
           return;
         }
 
         if (!state.isConnected) {
-          sendResponse({ ok: false, error: "请先在扩展弹窗中连接 Google Drive" });
+          sendResponse({ ok: false, error: "Open the extension popup and click Connect Google Drive." });
           return;
         }
 

@@ -2,7 +2,7 @@ let lastSavedSnapshot = "";
 let saveTimer = null;
 let lastKnownUrl = location.href;
 
-// 模型配置
+// AI platform configuration.
 const AI_MODELS = {
   chatgpt: {
     name: "ChatGPT",
@@ -61,7 +61,7 @@ const AI_MODELS = {
   }
 };
 
-// 检测当前模型
+// Detect the current AI platform.
 function detectCurrentModel() {
   const url = location.href;
   for (const [modelKey, config] of Object.entries(AI_MODELS)) {
@@ -69,7 +69,7 @@ function detectCurrentModel() {
       return modelKey;
     }
   }
-  return "chatgpt"; // 默认
+  return "chatgpt";
 }
 
 const currentModel = detectCurrentModel();
@@ -490,7 +490,7 @@ function toMarkdownContent(title, messages) {
     })
     .join("\n\n---\n\n");
 
-  return `# ${title}\n\n- 来源: ${currentModelName}\n- URL: ${location.href}\n- 更新时间: ${timestamp}\n- 消息数: ${messages.length}\n\n---\n\n${body}\n`;
+  return `# ${title}\n\n- Source: ${currentModelName}\n- URL: ${location.href}\n- Updated at: ${timestamp}\n- Message count: ${messages.length}\n\n---\n\n${body}\n`;
 }
 
 function queueConversationSync() {
