@@ -12,7 +12,7 @@ Chrome extension that saves supported AI chat conversations to the user's own Go
 ## Current Version
 
 - Extension name: `AI Chats Auto Save`
-- Version: `1.2.3`
+- Version: `1.2.4`
 - Chrome Web Store item ID: `dmfmnjinpphfpodandcboelcglicaomg`
 - Manifest description: `Save supported AI chat conversations to Google Drive as Markdown files, organized by platform after you connect your account.`
 
@@ -131,7 +131,7 @@ The current manifest uses:
 
 ```json
 "oauth2": {
-  "client_id": "776131550478-l3fehq9jkffh6ecrfba3s3evdtkq86o6.apps.googleusercontent.com",
+  "client_id": "413814156152-3vttf4ii75fut8p9jdo71cethn345h4g.apps.googleusercontent.com",
   "scopes": [
     "https://www.googleapis.com/auth/drive.file"
   ]
